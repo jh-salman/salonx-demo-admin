@@ -103,18 +103,24 @@ export async function POST(request: Request) {
   const seriesId =
     typeof b.seriesId === "string" && b.seriesId.trim() ? b.seriesId.trim() : null;
 
-  const row = await prisma.salonxAppointment.create({
-    data: {
-      clientName,
-      service,
-      startAt: start,
-      endAt: end,
-      color,
-      price,
-      notes,
-      seriesId,
-    },
-  });
+  try {
+    const row = await prisma.salonxAppointment.create({
+      data: {
+        clientName,
+        service,
+        startAt: start,
+        endAt: end,
+        color,
+        price,
+        notes,
+        seriesId,
+      },
+    });
 
-  return withCors(NextResponse.json({ appointment: toDto(row) }, { status: 201 }));
+    return withCors(NextResponse.json({ appointment: toDto(row) }, { status: 201 }));
+  } catch (e) {
+    console.error("[api/appointments POST] create failed", e);
+    const message = e instanceof Error ? e.message : "Create failed";
+    return withCors(NextResponse.json({ error: message }, { status: 500 }));
+  }
 }
