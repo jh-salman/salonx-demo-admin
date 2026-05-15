@@ -8,6 +8,7 @@ import {
   type S1DemoSlotId,
   mergeWithDefaults,
 } from "@/lib/salonx-config";
+import { salonxApiUrl } from "@/lib/salonx-api-url";
 import { useCallback, useState } from "react";
 
 function absolutizeImages(
@@ -30,7 +31,7 @@ export function ExportSyncButton() {
     setMessage(null);
     const origin =
       typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-    const res = await fetch("/api/config");
+    const res = await fetch(salonxApiUrl("/api/config"));
     if (!res.ok) {
       setMessage("Could not load config");
       return;

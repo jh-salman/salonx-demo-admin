@@ -1,3 +1,5 @@
+import { salonxApiUrl } from "./salonx-api-url";
+
 type SignPayload = {
   cloudName: string;
   apiKey: string;
@@ -11,7 +13,7 @@ type SignPayload = {
 async function fetchSignPayload(
   resourceType: "image" | "video",
 ): Promise<SignPayload | null> {
-  const res = await fetch("/api/upload/sign", {
+  const res = await fetch(salonxApiUrl("/api/upload/sign"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ resourceType }),

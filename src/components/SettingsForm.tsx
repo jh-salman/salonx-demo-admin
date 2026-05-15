@@ -7,6 +7,7 @@ import {
   normalizePrimaryHex,
   SALONX_THEME_PRESETS,
 } from "@/lib/salonx-config";
+import { salonxApiUrl } from "@/lib/salonx-api-url";
 import { useCallback, useEffect, useState } from "react";
 
 export function SettingsForm() {
@@ -20,7 +21,7 @@ export function SettingsForm() {
     let cancelled = false;
     void (async () => {
       try {
-        const res = await fetch("/api/config");
+        const res = await fetch(salonxApiUrl("/api/config"));
         if (!res.ok) throw new Error("Load failed");
         const data = await res.json();
         if (!cancelled) setConfig(mergeWithDefaults(data));
@@ -41,7 +42,7 @@ export function SettingsForm() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/config", {
+      const res = await fetch(salonxApiUrl("/api/config"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ primaryHex: hex, publishToApp: true }),

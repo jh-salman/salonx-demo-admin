@@ -40,3 +40,46 @@ model SalonxAppointment {
   @@index([startAt])
   @@index([endAt])
 }
+
+/// Parked + waitlist toolbar (`/api/calendar-toolbar`).
+model SalonxCalendarToolbar {
+  id              String   @id @default("default")
+  parkedFromDrag  Json
+  toolbarEvents   Json
+  updatedAt       DateTime @updatedAt
+}
+
+/// Client picker list (`/api/clients`).
+model SalonxClientCatalog {
+  id        String   @id @default("default")
+  items     Json
+  updatedAt DateTime @updatedAt
+}
+
+/// Service picker list (`/api/service-catalog`).
+model SalonxServiceCatalog {
+  id        String   @id @default("default")
+  items     Json
+  updatedAt DateTime @updatedAt
+}
+
+/// Per-client consultation notes + LOOK photos (`/api/client-consultation/:clientKey`).
+model SalonxClientConsultation {
+  clientKey String   @id
+  payload   Json
+  updatedAt DateTime @updatedAt
+}
+
+/// Per-appointment checkout queue + rates (`/api/appointment-visit/:appointmentId`).
+model SalonxAppointmentVisit {
+  appointmentId String   @id
+  payload       Json
+  updatedAt     DateTime @updatedAt
+}
+
+/// Product picker list (`/api/product-catalog`).
+model SalonxProductCatalog {
+  id        String   @id @default("default")
+  items     Json
+  updatedAt DateTime @updatedAt
+}

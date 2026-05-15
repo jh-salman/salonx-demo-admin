@@ -27,6 +27,7 @@ import {
   previewConfigForBrand,
   SALONX_THEME_PRESETS,
 } from "@/lib/salonx-config";
+import { salonxApiUrl } from "@/lib/salonx-api-url";
 import { DeviceMobile, CheckCircle, Info } from "phosphor-react";
 import {
   useCallback,
@@ -246,7 +247,7 @@ export function BuildStationApp() {
   const s1PickSlotRef = useRef<S1DemoSlotId | null>(null);
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/config");
+    const res = await fetch(salonxApiUrl("/api/config"));
     if (!res.ok) throw new Error("load");
     const raw = await res.json();
     return mergeWithDefaults(raw);
@@ -304,7 +305,7 @@ export function BuildStationApp() {
         if (options.activate) {
           body.activeBrandId = brand.id;
         }
-        const res = await fetch("/api/config", {
+        const res = await fetch(salonxApiUrl("/api/config"), {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
@@ -345,7 +346,7 @@ export function BuildStationApp() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/config", {
+      const res = await fetch(salonxApiUrl("/api/config"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -375,7 +376,7 @@ export function BuildStationApp() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/config", {
+      const res = await fetch(salonxApiUrl("/api/config"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ removeBrandId: selectedId, publishToApp: true }),
@@ -407,7 +408,7 @@ export function BuildStationApp() {
     }
     const fd = new FormData();
     fd.set("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    const res = await fetch(salonxApiUrl("/api/upload"), { method: "POST", body: fd });
     if (!res.ok) {
       let detail = "";
       try {

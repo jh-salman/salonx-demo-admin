@@ -3,6 +3,7 @@
 import { S1CurveMaskPreviewIframe } from "@/components/s1-preview/S1CurveMaskPreviewIframe";
 import { S1_FRAME_W } from "@/lib/s1-slot-geometry";
 import { type SalonxV2AdminConfig, mergeWithDefaults } from "@/lib/salonx-config";
+import { salonxApiUrl } from "@/lib/salonx-api-url";
 import { useEffect, useState } from "react";
 
 export function Screen1MediaForm() {
@@ -13,7 +14,7 @@ export function Screen1MediaForm() {
     let cancelled = false;
     void (async () => {
       try {
-        const res = await fetch("/api/config");
+        const res = await fetch(salonxApiUrl("/api/config"));
         if (!res.ok) throw new Error("load");
         const raw = await res.json();
         if (cancelled) return;

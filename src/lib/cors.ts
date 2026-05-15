@@ -1,7 +1,7 @@
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, PATCH, POST, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, If-None-Match",
+  "Access-Control-Allow-Methods": "GET, PATCH, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, If-None-Match, If-Match",
   "Access-Control-Expose-Headers": "ETag",
 } as const;
 
