@@ -105,6 +105,33 @@ export const S1_LAYOUT = {
   curveH: 852,
 } as const;
 
+/**
+ * Climax co-brand strip — keep in sync with `salonx-web-v2` `climax.css`
+ * (`--climax-brandbar-h`, `.climax-brandbar__logo`).
+ */
+export const CLIMAX_BRANDBAR_H = 92;
+
+/** Logical logo bounds on a 393px-wide handset (`max-width: min(240px, 62vw)` × `height: 70px`). */
+export const CLIMAX_HEADER_LOGO_BOX = { w: 240, h: 70 } as const;
+export const CLIMAX_HEADER_LOGO_ASPECT =
+  CLIMAX_HEADER_LOGO_BOX.w / CLIMAX_HEADER_LOGO_BOX.h;
+
+/** Device max logo width at a given frame width (matches `min(240px, 62vw)`). */
+export function climaxHeaderLogoMaxWidthAtFrame(frameW = S1_FRAME_W): number {
+  return Math.min(CLIMAX_HEADER_LOGO_BOX.w, frameW * 0.62);
+}
+
+/** Scaled brandbar + logo box for Build Station handset preview. */
+export function climaxHeaderLogoPreviewMetrics(previewFrameW: number) {
+  const scale = previewFrameW / S1_FRAME_W;
+  const logoMaxW = climaxHeaderLogoMaxWidthAtFrame();
+  return {
+    brandbarH: CLIMAX_BRANDBAR_H * scale,
+    logoH: CLIMAX_HEADER_LOGO_BOX.h * scale,
+    logoMaxW: logoMaxW * scale,
+  };
+}
+
 /** Same transform string as `Screen1DemoImage` slots. */
 export function slotImageTransform(adjust: S1DemoSlotAdjust): string {
   return `translate(${adjust.tx}%, ${adjust.ty}%) rotate(${adjust.rotate}deg) scale(${adjust.scale})`;

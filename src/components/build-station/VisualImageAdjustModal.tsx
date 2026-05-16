@@ -6,6 +6,7 @@ import {
 } from "@/lib/visual-crop-mapping";
 import type { S1DemoSlotAdjust, S1DemoSlotId } from "@/lib/salonx-config";
 import {
+  CLIMAX_HEADER_LOGO_BOX,
   S1_CURVE_MASK_URL,
   S1_CURVE_STRIP_CONTENT_MASK_URL,
   S1_MASK_POS_PROMO,
@@ -38,6 +39,8 @@ type Props = {
    * (no curve mask — marquee is a full-bleed band on device).
    */
   handsetCropGlow?: boolean;
+  /** Climax co-brand header logo crop (narrow bar, not full handset). */
+  climaxHeaderCrop?: boolean;
   /** When `video`, preview uses `<video>` with the same pan/zoom/rotate as images. */
   mediaKind?: "image" | "video";
   initialAdjust: S1DemoSlotAdjust;
@@ -62,6 +65,7 @@ export function VisualImageAdjustModal({
   stylistSlot,
   primaryHex,
   handsetCropGlow,
+  climaxHeaderCrop,
   mediaKind = "image",
   initialAdjust,
   onClose,
@@ -190,7 +194,15 @@ export function VisualImageAdjustModal({
   /** Portrait slots: limit height so width follows real handset ratio. Wide slots: cap height. */
   const viewportStyle: CSSProperties = useMemo(() => {
     let base: CSSProperties;
-    if (stylistSlot === "hero" || stylistSlot === "promo") {
+    if (climaxHeaderCrop) {
+      /* Exact logical logo box from `climax-brandbar__logo` on 393px-wide device. */
+      base = {
+        aspectRatio: aspect,
+        width: `min(100%, ${CLIMAX_HEADER_LOGO_BOX.w}px)`,
+        maxWidth: "100%",
+        height: "auto",
+      };
+    } else if (stylistSlot === "hero" || stylistSlot === "promo") {
       /* Match mask canvas width so `curve-mask.svg` (398×852) aligns with hero / promo bands. */
       base = {
         aspectRatio: aspect,
@@ -215,13 +227,13 @@ export function VisualImageAdjustModal({
     }
 
     if (!stylistSlot) {
-      if (handsetCropGlow && primaryHex) {
+      if ((handsetCropGlow || climaxHeaderCrop) && primaryHex) {
         const { r, g, b } = hexToRgbTriplet(primaryHex);
         const edge = `rgb(${r}, ${g}, ${b})`;
         const glow = `rgba(${r}, ${g}, ${b}, 0.4)`;
         return {
           ...base,
-          borderRadius: 16,
+          borderRadius: climaxHeaderCrop ? 10 : 16,
           isolation: "isolate",
           WebkitTransform: "translateZ(0)",
           transform: "translateZ(0)",
@@ -314,7 +326,7 @@ export function VisualImageAdjustModal({
       ...base,
       borderRadius: S1_SLOT_FRAME_RADIUS_PX[stylistSlot],
     };
-  }, [aspect, stylistSlot, primaryHex, handsetCropGlow]);
+  }, [aspect, stylistSlot, primaryHex, handsetCropGlow, climaxHeaderCrop]);
 
   if (!open) return null;
 
@@ -343,8 +355,10 @@ export function VisualImageAdjustModal({
                 ? " Blue glow traces the hero slot (rounded + curve). Pan/zoom so the art fills that shape, then Apply."
                 : stylistSlot === "promo"
                   ? " Blue glow traces the promo slot (rounded + curve). Pan/zoom so the art fills that shape, then Apply."
-                  : handsetCropGlow
-                    ? " Primary glow outlines the Marquee frame (same edge treatment as stylist hero/promo). Pan/zoom to frame the art, then Apply."
+                  : climaxHeaderCrop
+                    ? ` Crop frame is the on-device logo box (${CLIMAX_HEADER_LOGO_BOX.w}×${CLIMAX_HEADER_LOGO_BOX.h}px @393px). Pan/zoom, then Apply.`
+                    : handsetCropGlow
+                      ? " Primary glow outlines the Marquee frame (same edge treatment as stylist hero/promo). Pan/zoom to frame the art, then Apply."
                     : stylistSlot === "curveStrip" && mediaKind === "video"
                       ? " Preview outline matches the curve strip on device. Pan/zoom/rotate to frame the video, then Apply."
                     : stylistSlot

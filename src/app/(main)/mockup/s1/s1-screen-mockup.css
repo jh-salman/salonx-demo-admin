@@ -23,13 +23,17 @@
 
 .s1-mockup-scope .screen1-container {
   position: relative;
-  height: 100%;
   width: 393px;
+  height: 852px;
+  min-height: 852px;
 }
 
 .s1-mockup-scope .layout-wrapper {
   position: relative;
   z-index: 100;
+  width: var(--s1-bg-w);
+  height: var(--s1-bg-h);
+  min-height: var(--s1-bg-h);
 }
 
 .s1-mockup-scope .screen1-background {
@@ -57,7 +61,7 @@
   top: var(--s1-curve-top);
   right: var(--s1-curve-right);
   width: var(--s1-curve-w);
-  height: 100%;
+  height: var(--s1-curve-h);
   z-index: 55;
   pointer-events: none;
   display: flex;

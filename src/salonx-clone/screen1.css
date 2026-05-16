@@ -19,15 +19,18 @@
 .layout-wrapper {
   position: relative;
   z-index: 100;
+  width: var(--s1-bg-w, 393px);
+  height: var(--s1-bg-h, 852px);
+  min-height: var(--s1-bg-h, 852px);
 }
 
 .screen1-background {
   position: absolute;
   left: 0;
   top: 0;
-  /* width: 393px;
-  height: 852px; */
-  /* min-height: 852px; */
+  width: var(--s1-bg-w);
+  height: var(--s1-bg-h);
+  min-height: var(--s1-bg-h);
   background: black;
   z-index: 10;
   overflow: visible;
@@ -89,12 +92,21 @@
   top: var(--s1-curve-top);
   right: var(--s1-curve-right);
   width: var(--s1-curve-w);
-  height: 100%;
+  /* Full device height — `%` breaks when `.screen1-background` height was implicit. */
+  height: var(--s1-curve-h);
   z-index: 55;
   pointer-events: none;
   display: flex;
   justify-content: flex-end;
   align-items: stretch;
+}
+
+.curvedline-svg {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .profile-panel {

@@ -3,6 +3,10 @@
 import { VisualImageAdjustModal } from "@/components/build-station/VisualImageAdjustModal";
 import { S1CurveMaskPreviewIframe } from "@/components/s1-preview/S1CurveMaskPreviewIframe";
 import {
+  CLIMAX_BRANDBAR_H,
+  CLIMAX_HEADER_LOGO_ASPECT,
+  CLIMAX_HEADER_LOGO_BOX,
+  climaxHeaderLogoPreviewMetrics,
   HANDSET_FRAME_ASPECT,
   MARQUEE_SLOT_ASPECT,
   MARQUEE_SLOT_H,
@@ -20,6 +24,7 @@ import {
   type BuildScreenId,
   type SalonxV2AdminConfig,
   type S1DemoSlotId,
+  type S1DemoSlotAdjust,
   clampAdjust,
   getActiveBrand,
   mergeWithDefaults,
@@ -59,7 +64,8 @@ function fileLooksLikeVideo(f: File): boolean {
 
 type AdjustModalTarget =
   | { kind: "s1"; slot: S1DemoSlotId }
-  | { kind: "simple"; screen: "s2" | "s4" | "s5" };
+  | { kind: "simple"; screen: "s2" | "s4" | "s5" }
+  | { kind: "s4-header" };
 
 type UploadingTarget = AdjustModalTarget | { kind: "s4-header" };
 
@@ -318,7 +324,25 @@ export function BuildStationApp() {
         setStore(cfg);
         const b = cfg.brands.find((x) => x.id === brand.id);
         if (b && selectedId === brand.id) {
-          setWorking(cloneBrand(b));
+          const merged = cloneBrand(b);
+          const sentHeaderLogo = brand.s4.headerLogo?.trim() ?? "";
+          const persistedHeaderLogo = merged.s4.headerLogo?.trim() ?? "";
+          /* Keep s4.headerLogo if API normalize dropped it (older demo-api). */
+          if (sentHeaderLogo && !persistedHeaderLogo) {
+            merged.s4 = { ...merged.s4, headerLogo: brand.s4.headerLogo };
+            setError(
+              "Header logo did not save on the API (demo-api may need a restart). Logo kept in this tab — click Apply to App again after restarting demo-api.",
+            );
+          } else if (
+            brand.s4.headerLogoAdjust &&
+            !merged.s4.headerLogoAdjust
+          ) {
+            merged.s4 = {
+              ...merged.s4,
+              headerLogoAdjust: brand.s4.headerLogoAdjust,
+            };
+          }
+          setWorking(merged);
         }
         setMessage(
           options.activate
@@ -687,6 +711,20 @@ export function BuildStationApp() {
               key === "s4" && typeof block.headerLogo === "string"
                 ? block.headerLogo
                 : "";
+            const s4HeaderLogoAdjust: S1DemoSlotAdjust =
+              key === "s4" && block.headerLogoAdjust
+                ? block.headerLogoAdjust
+                : {
+                    scale: 1,
+                    rotate: 0,
+                    tx: 0,
+                    ty: 0,
+                    fit: "contain",
+                  };
+            const s4HeaderLogoTransform = slotImageTransform(s4HeaderLogoAdjust);
+            const climaxPreviewW = Math.min(360, S1_FRAME_W * previewScale);
+            const climaxHeaderPreview =
+              key === "s4" ? climaxHeaderLogoPreviewMetrics(climaxPreviewW) : null;
             const howItWorks =
               key === "s2" ? (
                 <>
@@ -700,8 +738,9 @@ export function BuildStationApp() {
                 <>
                   <strong className="font-semibold">Climax</strong>: upload the full-bleed{" "}
                   <strong className="font-semibold">background</strong> and the centered{" "}
-                  <strong className="font-semibold">header logo</strong> (L3VEL3 co-brand). Tune the
-                  background with <strong className="font-semibold">Position &amp; zoom</strong>, then{" "}
+                  <strong className="font-semibold">header logo</strong> (L3VEL3 co-brand). Use{" "}
+                  <strong className="font-semibold">Position &amp; zoom</strong> on background and
+                  header logo, then{" "}
                   <strong className="font-semibold">Apply to App</strong> to sync salonx-web-v2.
                 </>
               ) : (
@@ -767,9 +806,10 @@ export function BuildStationApp() {
                           No image or video
                         </div>
                       )}
-                      {key === "s4" ? (
+                      {key === "s4" && climaxHeaderPreview ? (
                         <div
-                          className="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-[22%] min-h-[52px] items-center justify-center bg-gradient-to-b from-black/55 to-transparent px-3"
+                          className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-center bg-gradient-to-b from-black/55 to-transparent px-2"
+                          style={{ height: climaxHeaderPreview.brandbarH }}
                           aria-hidden
                         >
                           {s4HeaderLogo ? (
@@ -777,7 +817,17 @@ export function BuildStationApp() {
                             <img
                               src={s4HeaderLogo}
                               alt=""
-                              className="max-h-[70%] w-auto max-w-[62%] object-contain drop-shadow-md"
+                              className="w-auto drop-shadow-md"
+                              style={{
+                                height: climaxHeaderPreview.logoH,
+                                maxWidth: climaxHeaderPreview.logoMaxW,
+                                objectFit:
+                                  s4HeaderLogoAdjust.fit === "contain"
+                                    ? "contain"
+                                    : "cover",
+                                transform: s4HeaderLogoTransform,
+                                transformOrigin: "center center",
+                              }}
                             />
                           ) : (
                             <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
@@ -909,6 +959,10 @@ export function BuildStationApp() {
                           <p className="mt-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                             Header logo (L3VEL3)
                           </p>
+                          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                            Device slot {CLIMAX_HEADER_LOGO_BOX.w}×{CLIMAX_HEADER_LOGO_BOX.h}px
+                            (bar {CLIMAX_BRANDBAR_H}px @393px)
+                          </p>
                           <label
                             className={`inline-flex min-h-[2.5rem] items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white ${locked || uploadBusy ? "cursor-not-allowed bg-zinc-500 opacity-70" : "cursor-pointer bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900"}`}
                           >
@@ -938,7 +992,18 @@ export function BuildStationApp() {
                                       if (!prev) return prev;
                                       const next: BrandProfile = {
                                         ...prev,
-                                        s4: { ...prev.s4, headerLogo: url },
+                                        s4: {
+                                          ...prev.s4,
+                                          headerLogo: url,
+                                          headerLogoAdjust:
+                                            prev.s4.headerLogoAdjust ?? {
+                                              scale: 1,
+                                              rotate: 0,
+                                              tx: 0,
+                                              ty: 0,
+                                              fit: "contain",
+                                            },
+                                        },
                                       };
                                       queueMicrotask(() => {
                                         void persistBrandToServer(next, {
@@ -947,6 +1012,7 @@ export function BuildStationApp() {
                                       });
                                       return next;
                                     });
+                                    setAdjustModal({ kind: "s4-header" });
                                   } catch (err) {
                                     setError(
                                       err instanceof Error
@@ -963,10 +1029,28 @@ export function BuildStationApp() {
                           <button
                             type="button"
                             disabled={busy || locked || uploadBusy || !s4HeaderLogo}
+                            onClick={() => setAdjustModal({ kind: "s4-header" })}
+                            className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-200 disabled:opacity-40"
+                          >
+                            Position &amp; zoom
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy || locked || uploadBusy || !s4HeaderLogo}
                             onClick={() => {
                               const next: BrandProfile = {
                                 ...working,
-                                s4: { ...block, headerLogo: "" },
+                                s4: {
+                                  ...block,
+                                  headerLogo: "",
+                                  headerLogoAdjust: {
+                                    scale: 1,
+                                    rotate: 0,
+                                    tx: 0,
+                                    ty: 0,
+                                    fit: "contain",
+                                  },
+                                },
                               };
                               setWorking(next);
                               void persistBrandToServer(next, { activate: false });
@@ -1032,26 +1116,34 @@ export function BuildStationApp() {
           title={
             adjustModal.kind === "s1"
               ? `${S1_SLOT_LABELS[adjustModal.slot]} — match device slot`
-              : adjustModal.screen === "s2"
-                ? `${BUILD_SCREEN_LABELS.s2} — slot (${S1_FRAME_W}×${Math.round(MARQUEE_SLOT_H)})`
-                : `${BUILD_SCREEN_LABELS[adjustModal.screen]} — full screen (${S1_FRAME_W}×${S1_FRAME_H})`
+              : adjustModal.kind === "s4-header"
+                ? `Climax — co-brand logo (${CLIMAX_HEADER_LOGO_BOX.w}×${CLIMAX_HEADER_LOGO_BOX.h})`
+                : adjustModal.screen === "s2"
+                  ? `${BUILD_SCREEN_LABELS.s2} — slot (${S1_FRAME_W}×${Math.round(MARQUEE_SLOT_H)})`
+                  : `${BUILD_SCREEN_LABELS[adjustModal.screen]} — full screen (${S1_FRAME_W}×${S1_FRAME_H})`
           }
           imageUrl={
             adjustModal.kind === "s1"
               ? working.s1Demo.images[adjustModal.slot]
-              : working[adjustModal.screen].image
+              : adjustModal.kind === "s4-header"
+                ? working.s4.headerLogo ?? ""
+                : working[adjustModal.screen].image
           }
           aspect={
             adjustModal.kind === "s1"
               ? SLOT_DISPLAY_BOX[adjustModal.slot].w / SLOT_DISPLAY_BOX[adjustModal.slot].h
-              : adjustModal.screen === "s2"
-                ? MARQUEE_SLOT_ASPECT
-                : HANDSET_FRAME_ASPECT
+              : adjustModal.kind === "s4-header"
+                ? CLIMAX_HEADER_LOGO_ASPECT
+                : adjustModal.screen === "s2"
+                  ? MARQUEE_SLOT_ASPECT
+                  : HANDSET_FRAME_ASPECT
           }
           stylistSlot={adjustModal.kind === "s1" ? adjustModal.slot : undefined}
           primaryHex={working.primaryHex}
+          climaxHeaderCrop={adjustModal.kind === "s4-header"}
           handsetCropGlow={
-            adjustModal.kind === "simple" && adjustModal.screen === "s2"
+            adjustModal.kind === "s4-header" ||
+            (adjustModal.kind === "simple" && adjustModal.screen === "s2")
           }
           mediaKind={
             adjustModal.kind === "s1" &&
@@ -1063,7 +1155,15 @@ export function BuildStationApp() {
           initialAdjust={
             adjustModal.kind === "s1"
               ? working.s1Demo.adjust[adjustModal.slot]
-              : working[adjustModal.screen].adjust
+              : adjustModal.kind === "s4-header"
+                ? working.s4.headerLogoAdjust ?? {
+                    scale: 1,
+                    rotate: 0,
+                    tx: 0,
+                    ty: 0,
+                    fit: "contain",
+                  }
+                : working[adjustModal.screen].adjust
           }
           onClose={() => setAdjustModal(null)}
           onApply={async (next) => {
@@ -1078,6 +1178,11 @@ export function BuildStationApp() {
                   ...working.s1Demo,
                   adjust: { ...working.s1Demo.adjust, [slot]: clamped },
                 },
+              };
+            } else if (adjustModal.kind === "s4-header") {
+              updated = {
+                ...working,
+                s4: { ...working.s4, headerLogoAdjust: clamped },
               };
             } else {
               const sk = adjustModal.screen;
