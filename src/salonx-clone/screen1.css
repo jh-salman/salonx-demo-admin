@@ -13,7 +13,7 @@
 .screen1-container {
   position: relative;
   height: 100%;
-  width: 393px;
+  width: 100%;
 }
 
 .layout-wrapper {
@@ -25,9 +25,9 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: 393px;
-  height: 852px;
-  min-height: 852px;
+  /* width: 393px;
+  height: 852px; */
+  /* min-height: 852px; */
   background: black;
   z-index: 10;
   overflow: visible;

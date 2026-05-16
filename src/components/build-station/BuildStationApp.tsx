@@ -61,6 +61,8 @@ type AdjustModalTarget =
   | { kind: "s1"; slot: S1DemoSlotId }
   | { kind: "simple"; screen: "s2" | "s4" | "s5" };
 
+type UploadingTarget = AdjustModalTarget | { kind: "s4-header" };
+
 function UploadSpinner() {
   return (
     <span
@@ -242,7 +244,7 @@ export function BuildStationApp() {
   const [message, setMessage] = useState<string | null>(null);
   const [adjustModal, setAdjustModal] = useState<AdjustModalTarget | null>(null);
   /** Slot / screen currently uploading — shows spinner; on success opens Position & zoom. */
-  const [uploading, setUploading] = useState<AdjustModalTarget | null>(null);
+  const [uploading, setUploading] = useState<UploadingTarget | null>(null);
   const s1FileInputRef = useRef<HTMLInputElement>(null);
   const s1PickSlotRef = useRef<S1DemoSlotId | null>(null);
 
@@ -680,6 +682,11 @@ export function BuildStationApp() {
             );
             const simpleUploading =
               uploading?.kind === "simple" && uploading.screen === key;
+            const s4HeaderUploading = key === "s4" && uploading?.kind === "s4-header";
+            const s4HeaderLogo =
+              key === "s4" && typeof block.headerLogo === "string"
+                ? block.headerLogo
+                : "";
             const howItWorks =
               key === "s2" ? (
                 <>
@@ -691,10 +698,11 @@ export function BuildStationApp() {
                 </>
               ) : key === "s4" ? (
                 <>
-                  <strong className="font-semibold">Climax</strong> is the checkout background
-                  (full-bleed behind the glass card). Upload, tune with{" "}
-                  <strong className="font-semibold">Position &amp; zoom</strong>, then{" "}
-                  <strong className="font-semibold">Apply to App</strong> to sync.
+                  <strong className="font-semibold">Climax</strong>: upload the full-bleed{" "}
+                  <strong className="font-semibold">background</strong> and the centered{" "}
+                  <strong className="font-semibold">header logo</strong> (L3VEL3 co-brand). Tune the
+                  background with <strong className="font-semibold">Position &amp; zoom</strong>, then{" "}
+                  <strong className="font-semibold">Apply to App</strong> to sync salonx-web-v2.
                 </>
               ) : (
                 <>
@@ -717,7 +725,7 @@ export function BuildStationApp() {
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                     <div
                       className={`relative overflow-hidden rounded-xl border border-zinc-200 bg-zinc-900 transition-shadow dark:border-zinc-700 ${
-                        simpleUploading
+                        simpleUploading || s4HeaderUploading
                           ? "ring-2 ring-blue-500/40 shadow-md dark:ring-blue-400/45"
                           : ""
                       }`}
@@ -759,8 +767,32 @@ export function BuildStationApp() {
                           No image or video
                         </div>
                       )}
+                      {key === "s4" ? (
+                        <div
+                          className="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-[22%] min-h-[52px] items-center justify-center bg-gradient-to-b from-black/55 to-transparent px-3"
+                          aria-hidden
+                        >
+                          {s4HeaderLogo ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={s4HeaderLogo}
+                              alt=""
+                              className="max-h-[70%] w-auto max-w-[62%] object-contain drop-shadow-md"
+                            />
+                          ) : (
+                            <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+                              Header logo
+                            </span>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                     <div className="flex flex-col gap-2">
+                      {key === "s4" ? (
+                        <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                          Background
+                        </p>
+                      ) : null}
                       <label
                         className={`inline-flex min-h-[2.5rem] items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white ${locked || uploadBusy ? "cursor-not-allowed bg-zinc-500 opacity-70" : "cursor-pointer bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900"}`}
                       >
@@ -771,6 +803,8 @@ export function BuildStationApp() {
                           </>
                         ) : key === "s2" ? (
                           "Upload image or video"
+                        ) : key === "s4" ? (
+                          "Upload background"
                         ) : (
                           "Upload image"
                         )}
@@ -870,6 +904,79 @@ export function BuildStationApp() {
                       >
                         Position & zoom
                       </button>
+                      {key === "s4" ? (
+                        <>
+                          <p className="mt-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                            Header logo (L3VEL3)
+                          </p>
+                          <label
+                            className={`inline-flex min-h-[2.5rem] items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white ${locked || uploadBusy ? "cursor-not-allowed bg-zinc-500 opacity-70" : "cursor-pointer bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900"}`}
+                          >
+                            {s4HeaderUploading ? (
+                              <>
+                                <UploadSpinner />
+                                <span>Uploading…</span>
+                              </>
+                            ) : (
+                              "Upload header logo"
+                            )}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="sr-only"
+                              disabled={busy || locked || uploadBusy}
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                e.target.value = "";
+                                if (!f || locked || uploadBusy) return;
+                                void (async () => {
+                                  setUploading({ kind: "s4-header" });
+                                  setError(null);
+                                  try {
+                                    const url = await uploadFor(f);
+                                    setWorking((prev) => {
+                                      if (!prev) return prev;
+                                      const next: BrandProfile = {
+                                        ...prev,
+                                        s4: { ...prev.s4, headerLogo: url },
+                                      };
+                                      queueMicrotask(() => {
+                                        void persistBrandToServer(next, {
+                                          activate: false,
+                                        });
+                                      });
+                                      return next;
+                                    });
+                                  } catch (err) {
+                                    setError(
+                                      err instanceof Error
+                                        ? err.message.slice(0, 220)
+                                        : "Upload failed",
+                                    );
+                                  } finally {
+                                    setUploading(null);
+                                  }
+                                })();
+                              }}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            disabled={busy || locked || uploadBusy || !s4HeaderLogo}
+                            onClick={() => {
+                              const next: BrandProfile = {
+                                ...working,
+                                s4: { ...block, headerLogo: "" },
+                              };
+                              setWorking(next);
+                              void persistBrandToServer(next, { activate: false });
+                            }}
+                            className="rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700"
+                          >
+                            Clear header logo
+                          </button>
+                        </>
+                      ) : null}
                     </div>
                   </div>
                   <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
