@@ -36,7 +36,8 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label, Select } from "@/components/ui/input";
-import { ProductAddDialog } from "@/components/ProductAddDialog";
+import { CatalogDeleteButton } from "@/components/CatalogDeleteButton";
+import { CatalogItemDialog } from "@/components/CatalogItemDialog";
 
 type IconType = React.ComponentType<{ className?: string }>;
 
@@ -408,7 +409,11 @@ function AppointmentRow({
 
 function ServiceCard({ s }: { s: DashboardCatalogService }) {
   return (
-    <div className="surface-card group overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] transition hover:-translate-y-0.5 hover:shadow-md">
+    <div className="surface-card group relative overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] transition hover:-translate-y-0.5 hover:shadow-md">
+      <div className="absolute right-2 top-2 z-10 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+        <CatalogItemDialog kind="service" mode="edit" item={s} />
+        <CatalogDeleteButton kind="service" id={s.id} label={s.name} />
+      </div>
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-[var(--surface-muted)]">
         {s.image ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -441,7 +446,11 @@ function ServiceCard({ s }: { s: DashboardCatalogService }) {
 
 function ProductCard({ p }: { p: DashboardCatalogProduct }) {
   return (
-    <div className="surface-card group overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] transition hover:-translate-y-0.5 hover:shadow-md">
+    <div className="surface-card group relative overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] transition hover:-translate-y-0.5 hover:shadow-md">
+      <div className="absolute right-2 top-2 z-10 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+        <CatalogItemDialog kind="product" mode="edit" item={p} />
+        <CatalogDeleteButton kind="product" id={p.id} label={p.name} />
+      </div>
       <div
         className="relative aspect-square w-full overflow-hidden"
         style={{ background: p.color || "var(--surface-muted)" }}
@@ -741,15 +750,18 @@ export function CalendarDashboard({ data }: { data: CalendarDashboardData }) {
         icon={Scissors}
         iconColor="#d97706"
         iconBg="linear-gradient(135deg, rgba(245,158,11,0.18), rgba(245,158,11,0.04))"
-        description="Same catalog as salonx-web-v2 calendar picker. Edit from the Vite app or `/api/service-catalog`."
+        description="Manage services for calendar picker and waitlist. Upload an image or paste a URL."
+        actions={<CatalogItemDialog kind="service" mode="add" />}
       >
         {data.catalogServices.length === 0 ? (
-          <EmptyState text="No services yet." />
+          <EmptyState text="No services yet — add the first one." />
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-            {data.catalogServices.slice(0, 18).map((s) => (
-              <ServiceCard key={s.id} s={s} />
-            ))}
+          <div className="fancy-scroll max-h-[520px] overflow-y-auto pr-1">
+            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+              {data.catalogServices.map((s) => (
+                <ServiceCard key={s.id} s={s} />
+              ))}
+            </div>
           </div>
         )}
       </SectionCard>
@@ -760,16 +772,18 @@ export function CalendarDashboard({ data }: { data: CalendarDashboardData }) {
         icon={Package}
         iconColor="#9333ea"
         iconBg="linear-gradient(135deg, rgba(168,85,247,0.18), rgba(168,85,247,0.04))"
-        description="Mirrors mockProducts in Postgres + realtime to Screen 2 (LOOK)."
-        actions={<ProductAddDialog />}
+        description="Manage retail and back-bar products. Upload an image or paste a URL."
+        actions={<CatalogItemDialog kind="product" mode="add" />}
       >
         {data.catalogProducts.length === 0 ? (
           <EmptyState text="No products yet — add the first one." />
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-            {data.catalogProducts.slice(0, 18).map((p) => (
-              <ProductCard key={p.id} p={p} />
-            ))}
+          <div className="fancy-scroll max-h-[520px] overflow-y-auto pr-1">
+            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+              {data.catalogProducts.map((p) => (
+                <ProductCard key={p.id} p={p} />
+              ))}
+            </div>
           </div>
         )}
       </SectionCard>
