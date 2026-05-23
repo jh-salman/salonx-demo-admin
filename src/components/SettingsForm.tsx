@@ -84,6 +84,7 @@ export function SettingsForm() {
         <div className="flex flex-wrap gap-3">
           {SALONX_THEME_PRESETS.map(({ label, hex }) => {
             const active = normalizePrimaryHex(hex) === normalizePrimaryHex(primary);
+            const needsBorder = ["#ffffff", "#1c1c1c"].includes(normalizePrimaryHex(hex));
             return (
               <button
                 key={hex}
@@ -93,6 +94,8 @@ export function SettingsForm() {
                 aria-pressed={active}
                 onClick={() => void saveHex(hex)}
                 className={`h-11 w-11 rounded-full shadow-inner ring-2 ring-offset-2 transition ${
+                  needsBorder ? "border border-zinc-300 dark:border-zinc-600" : ""
+                } ${
                   active
                     ? "ring-zinc-900 dark:ring-zinc-100"
                     : "ring-transparent hover:ring-zinc-300 dark:hover:ring-zinc-600"

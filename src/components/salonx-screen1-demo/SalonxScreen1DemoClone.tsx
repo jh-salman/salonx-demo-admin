@@ -345,6 +345,13 @@ export function SalonxScreen1DemoClone({ config, embed = false }: CloneProps) {
                 </div>
               </div>
 
+              <a
+                href="https://youtu.be/O-6GcaV833c"
+                className="screen1-heroYoutubeLink"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Danger Jones butterfly — watch on YouTube (opens in new tab)"
+              />
               <DemoSlotStatic
                 className="s1demo-grayPromo s1demo-slot--promo"
                 hintEmpty="Tap"
@@ -354,11 +361,11 @@ export function SalonxScreen1DemoClone({ config, embed = false }: CloneProps) {
                 interactive={embed}
               />
               <a
-                href="https://youtu.be/O-6GcaV833c"
+                href="https://youtu.be/HOf_GkkpiKk?si=f75yAuJx_ld6-mHb"
                 className="screen1-promoYoutubeLink"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="Danger Jones — watch on YouTube (opens in new tab)"
+                aria-label="Epilogue — watch on YouTube (opens in new tab)"
               />
 
               <div

@@ -163,6 +163,7 @@ function EditBrandCard({
             <div className="flex flex-wrap gap-2">
               {SALONX_THEME_PRESETS.map(({ label, hex }) => {
                 const active = normalizePrimaryHex(hex) === primaryNorm;
+                const needsBorder = ["#ffffff", "#1c1c1c"].includes(normalizePrimaryHex(hex));
                 return (
                   <button
                     key={hex}
@@ -175,6 +176,8 @@ function EditBrandCard({
                       setWorking({ ...working, primaryHex: normalizePrimaryHex(hex) })
                     }
                     className={`h-10 w-10 shrink-0 rounded-full shadow-inner ring-2 ring-offset-2 transition ring-offset-white dark:ring-offset-zinc-950 disabled:opacity-50 ${
+                      needsBorder ? "border border-zinc-300 dark:border-zinc-600" : ""
+                    } ${
                       active
                         ? "ring-zinc-900 dark:ring-zinc-100"
                         : "ring-transparent hover:ring-zinc-300 dark:hover:ring-zinc-600"

@@ -548,6 +548,10 @@
   --s1demo-gray-hero-bleed-r: calc(var(--s1-bg-w, 393px) - 385px);
   /* Must match .s1demo-grayStack margin-top — drives mask vertical alignment */
   --s1demo-gray-stack-margin-top: 10px;
+  /* Hero row; keep in sync with .screen1-heroYoutubeLink { top } */
+  --s1demo-gray-hero-top: calc(
+    var(--s1demo-gray-stack-margin-top) + var(--s1demo-gray-top-h) + 10px
+  );
   /* Promo row; keep in sync with .s1demo-grayPromo { top } */
   --s1demo-gray-promo-top: 205px;
 }
@@ -1121,6 +1125,39 @@
   .s1demo-slot__imgLayer {
   background-image: none;
   background-color: #000000;
+}
+
+/* Hero butterfly: YouTube (Life Coach); same mask as hero slot. */
+.screen1-container--demoImage .screen1-heroYoutubeLink {
+  --s1-mask-w: calc(var(--s1-bg-w, 393px) + 5px);
+  --s1-curve-h: var(--s1-bg-h, 852px);
+  --s1-panel-left: 5px;
+  --s1-panel-top: var(--s1demo-gray-hero-top);
+  position: absolute;
+  top: var(--s1-panel-top);
+  left: var(--s1-panel-left);
+  width: 395px;
+  height: var(--s1demo-gray-hero-h);
+  z-index: 10;
+  box-sizing: border-box;
+  pointer-events: auto;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-mask-image: url('/curve-mask.svg');
+  mask-image: url('/curve-mask.svg');
+  -webkit-mask-size: var(--s1-mask-w) var(--s1-curve-h);
+  mask-size: var(--s1-mask-w) var(--s1-curve-h);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: calc(-1 * var(--s1-panel-left))
+    calc(var(--s1-curve-top) - var(--s1-panel-top));
+  mask-position: calc(-1 * var(--s1-panel-left)) calc(var(--s1-curve-top) - var(--s1-panel-top));
+  -webkit-mask-mode: alpha;
+  mask-mode: alpha;
 }
 
 /* Promo row: YouTube (Life Coach); same mask as promo slot. */
