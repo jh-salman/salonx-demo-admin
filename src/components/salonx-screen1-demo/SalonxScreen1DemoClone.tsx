@@ -5,7 +5,7 @@ import type { S1DemoSlotAdjust, SalonxV2AdminConfig, S1DemoSlotId } from "@/lib/
 import { getActiveBrand } from "@/lib/salonx-config";
 import { S1_FRAME_H, S1_FRAME_W, slotImageTransform } from "@/lib/s1-slot-geometry";
 import { salonxThemeInlineVars } from "@/lib/salonx-primary-theme";
-import type { CSSProperties } from "react";
+import type { CSSProperties, KeyboardEvent, MouseEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 import "@/salonx-clone/screen1.css";
@@ -81,8 +81,10 @@ function DemoSlotStatic({
     ["--s1-slot-fit" as string]: adjust.fit,
   };
 
-  const notifyParent = () => {
+  const notifyParent = (e?: MouseEvent | KeyboardEvent) => {
     if (!interactive || !slotId) return;
+    e?.stopPropagation();
+    e?.preventDefault();
     if (typeof window !== "undefined" && window.parent !== window) {
       window.parent.postMessage(
         { type: S1_EMBED_SLOT_CLICK, slot: slotId },
@@ -98,13 +100,12 @@ function DemoSlotStatic({
       aria-label={interactive && slotId ? EMBED_SLOT_ARIA[slotId] : undefined}
       role={interactive ? "button" : undefined}
       tabIndex={interactive ? 0 : undefined}
-      onClick={interactive ? notifyParent : undefined}
+      onClick={interactive ? (e) => notifyParent(e) : undefined}
       onKeyDown={
         interactive
           ? (e) => {
               if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                notifyParent();
+                notifyParent(e);
               }
             }
           : undefined
@@ -195,27 +196,29 @@ const emptyStyle: CSSProperties = {
   textAlign: "center",
 };
 
-function WaitingListStatic({ primaryHex }: { primaryHex: string }) {
-  const headerStyles = useMemo(() => {
-    const h = primaryHex;
-    return {
+const S1_WAITLIST_INDICATOR_BLUE = "#25AFFF";
+
+function WaitingListStatic() {
+  const headerStyles = useMemo(
+    () => ({
       indicatorDotStyle: {
         width: "10px",
         height: "10px",
-        background: h,
+        background: S1_WAITLIST_INDICATOR_BLUE,
         borderRadius: "50%",
-        boxShadow: `0 0 8px ${h}`,
+        boxShadow: `0 0 8px ${S1_WAITLIST_INDICATOR_BLUE}`,
       } satisfies CSSProperties,
       waitingListHeaderTextStyle: {
-        color: h,
+        color: S1_WAITLIST_INDICATOR_BLUE,
         fontSize: "0.72rem",
         fontWeight: "bold",
         paddingLeft: "10px",
         margin: 0,
         letterSpacing: "0.04em",
       } satisfies CSSProperties,
-    };
-  }, [primaryHex]);
+    }),
+    [],
+  );
 
   return (
     <div style={waitingContainerStyle}>
@@ -345,13 +348,15 @@ export function SalonxScreen1DemoClone({ config, embed = false }: CloneProps) {
                 </div>
               </div>
 
-              <a
-                href="https://youtu.be/O-6GcaV833c"
-                className="screen1-heroYoutubeLink"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Danger Jones butterfly — watch on YouTube (opens in new tab)"
-              />
+              {embed ? null : (
+                <a
+                  href="https://youtu.be/O-6GcaV833c"
+                  className="screen1-heroYoutubeLink"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Danger Jones butterfly — watch on YouTube (opens in new tab)"
+                />
+              )}
               <DemoSlotStatic
                 className="s1demo-grayPromo s1demo-slot--promo"
                 hintEmpty="Tap"
@@ -360,20 +365,22 @@ export function SalonxScreen1DemoClone({ config, embed = false }: CloneProps) {
                 slotId="promo"
                 interactive={embed}
               />
-              <a
-                href="https://youtu.be/HOf_GkkpiKk?si=f75yAuJx_ld6-mHb"
-                className="screen1-promoYoutubeLink"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Epilogue — watch on YouTube (opens in new tab)"
-              />
+              {embed ? null : (
+                <a
+                  href="https://youtu.be/HOf_GkkpiKk?si=f75yAuJx_ld6-mHb"
+                  className="screen1-promoYoutubeLink"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Epilogue — watch on YouTube (opens in new tab)"
+                />
+              )}
 
               <div
                 className="client-list-wrapper client-list"
                 style={{ transform: "translateX(0%)" }}
               >
                 <ClientListStatic />
-                <WaitingListStatic primaryHex={brand.primaryHex} />
+                <WaitingListStatic />
               </div>
 
               <div

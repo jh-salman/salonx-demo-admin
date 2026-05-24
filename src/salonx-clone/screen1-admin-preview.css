@@ -24,3 +24,17 @@
   outline: 2px solid rgba(59, 130, 246, 0.85);
   outline-offset: 2px;
 }
+
+/* Build Station embed: slot taps must not fall through to stage hyperlinks */
+.screen1-container--demoImage.screen1-container--adminPreview .screen1-heroYoutubeLink,
+.screen1-container--demoImage.screen1-container--adminPreview .screen1-promoYoutubeLink,
+.screen1-container--demoImage.screen1-container--adminPreview .screen1-cobraCreditLink,
+.screen1-container--demoImage.screen1-container--adminPreview .screen1-curveCalendarTap {
+  pointer-events: none;
+}
+
+.screen1-container--demoImage.screen1-container--adminPreview
+  .s1demo-slot--embedInteractive.s1demo-slot--committed {
+  position: relative;
+  z-index: 12;
+}

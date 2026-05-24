@@ -30,6 +30,16 @@ function newCatalogId(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+function repairCatalogIds(items: unknown[], prefix: string): unknown[] {
+  return items.map((raw) => {
+    const o = asRecord(raw);
+    if (!o) return raw;
+    const id = typeof o.id === "string" && o.id.trim() ? o.id.trim() : "";
+    if (id) return raw;
+    return { ...o, id: newCatalogId(prefix) };
+  });
+}
+
 async function demoApiFetch<T>(path: string, init?: RequestInit): Promise<T | null> {
   const origin = salonxApiOrigin();
   if (!origin) return null;
@@ -144,11 +154,10 @@ async function saveServices(
   return { ok: true };
 }
 
-function normalizeProductInput(input: ProductCatalogInput): ProductCatalogInput | null {
+function normalizeProductInput(input: ProductCatalogInput): Omit<ProductCatalogInput, "id"> & { id?: string } | null {
   const name = input.name?.trim();
   if (!name) return null;
-  return {
-    id: input.id?.trim() || undefined,
+  const out: Omit<ProductCatalogInput, "id"> & { id?: string } = {
     name,
     brand: input.brand?.trim() || undefined,
     price: typeof input.price === "number" && !Number.isNaN(input.price) ? input.price : undefined,
@@ -156,26 +165,32 @@ function normalizeProductInput(input: ProductCatalogInput): ProductCatalogInput 
     color: input.color?.trim() || undefined,
     stationTag: input.stationTag?.trim() || undefined,
   };
+  const id = input.id?.trim();
+  if (id) out.id = id;
+  return out;
 }
 
-function normalizeServiceInput(input: ServiceCatalogInput): ServiceCatalogInput | null {
+function normalizeServiceInput(input: ServiceCatalogInput): Omit<ServiceCatalogInput, "id"> & { id?: string } | null {
   const name = input.name?.trim();
   if (!name) return null;
-  return {
-    id: input.id?.trim() || undefined,
+  const out: Omit<ServiceCatalogInput, "id"> & { id?: string } = {
     name,
     price: typeof input.price === "number" && !Number.isNaN(input.price) ? input.price : undefined,
     image: input.image?.trim() || undefined,
     kind: input.kind?.trim() || undefined,
   };
+  const id = input.id?.trim();
+  if (id) out.id = id;
+  return out;
 }
 
 export async function addProductFromAdmin(input: ProductCatalogInput): Promise<CatalogResult> {
   const product = normalizeProductInput(input);
   if (!product) return { ok: false, error: "Product name is required" };
   const { items, updatedAt } = await loadProducts();
-  items.push({ id: newCatalogId("prod"), ...product });
-  return saveProducts(items, updatedAt);
+  const catalog = repairCatalogIds(items, "prod");
+  catalog.push({ ...product, id: newCatalogId("prod") });
+  return saveProducts(catalog, updatedAt);
 }
 
 export async function updateProductFromAdmin(input: ProductCatalogInput): Promise<CatalogResult> {
@@ -184,12 +199,14 @@ export async function updateProductFromAdmin(input: ProductCatalogInput): Promis
   const product = normalizeProductInput(input);
   if (!product) return { ok: false, error: "Product name is required" };
   const { items, updatedAt } = await loadProducts();
+  const catalog = repairCatalogIds(items, "prod");
   let found = false;
-  const next = items.map((raw) => {
+  const next = catalog.map((raw) => {
     const o = asRecord(raw);
     if (!o || o.id !== id) return raw;
     found = true;
-    return { ...o, ...product, id };
+    const { id: _drop, ...fields } = product;
+    return { ...o, ...fields, id };
   });
   if (!found) return { ok: false, error: "Product not found" };
   return saveProducts(next, updatedAt);
@@ -199,11 +216,12 @@ export async function deleteProductFromAdmin(id: string): Promise<CatalogResult>
   const target = id.trim();
   if (!target) return { ok: false, error: "Missing product id" };
   const { items, updatedAt } = await loadProducts();
-  const next = items.filter((raw) => {
+  const catalog = repairCatalogIds(items, "prod");
+  const next = catalog.filter((raw) => {
     const o = asRecord(raw);
     return !o || o.id !== target;
   });
-  if (next.length === items.length) return { ok: false, error: "Product not found" };
+  if (next.length === catalog.length) return { ok: false, error: "Product not found" };
   return saveProducts(next, updatedAt);
 }
 
@@ -211,8 +229,9 @@ export async function addServiceFromAdmin(input: ServiceCatalogInput): Promise<C
   const service = normalizeServiceInput(input);
   if (!service) return { ok: false, error: "Service name is required" };
   const { items, updatedAt } = await loadServices();
-  items.push({ id: newCatalogId("svc"), ...service });
-  return saveServices(items, updatedAt);
+  const catalog = repairCatalogIds(items, "svc");
+  catalog.push({ ...service, id: newCatalogId("svc") });
+  return saveServices(catalog, updatedAt);
 }
 
 export async function updateServiceFromAdmin(input: ServiceCatalogInput): Promise<CatalogResult> {
@@ -221,12 +240,14 @@ export async function updateServiceFromAdmin(input: ServiceCatalogInput): Promis
   const service = normalizeServiceInput(input);
   if (!service) return { ok: false, error: "Service name is required" };
   const { items, updatedAt } = await loadServices();
+  const catalog = repairCatalogIds(items, "svc");
   let found = false;
-  const next = items.map((raw) => {
+  const next = catalog.map((raw) => {
     const o = asRecord(raw);
     if (!o || o.id !== id) return raw;
     found = true;
-    return { ...o, ...service, id };
+    const { id: _drop, ...fields } = service;
+    return { ...o, ...fields, id };
   });
   if (!found) return { ok: false, error: "Service not found" };
   return saveServices(next, updatedAt);
@@ -236,10 +257,11 @@ export async function deleteServiceFromAdmin(id: string): Promise<CatalogResult>
   const target = id.trim();
   if (!target) return { ok: false, error: "Missing service id" };
   const { items, updatedAt } = await loadServices();
-  const next = items.filter((raw) => {
+  const catalog = repairCatalogIds(items, "svc");
+  const next = catalog.filter((raw) => {
     const o = asRecord(raw);
     return !o || o.id !== target;
   });
-  if (next.length === items.length) return { ok: false, error: "Service not found" };
+  if (next.length === catalog.length) return { ok: false, error: "Service not found" };
   return saveServices(next, updatedAt);
 }

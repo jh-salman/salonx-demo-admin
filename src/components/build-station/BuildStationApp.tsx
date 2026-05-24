@@ -1,6 +1,7 @@
 "use client";
 
 import { VisualImageAdjustModal } from "@/components/build-station/VisualImageAdjustModal";
+import { S1SlotMediaActionDialog } from "@/components/build-station/S1SlotMediaActionDialog";
 import { S1CurveMaskPreviewIframe } from "@/components/s1-preview/S1CurveMaskPreviewIframe";
 import {
   CLIMAX_BRANDBAR_H,
@@ -252,10 +253,14 @@ export function BuildStationApp() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [adjustModal, setAdjustModal] = useState<AdjustModalTarget | null>(null);
+  const [s1SlotAction, setS1SlotAction] = useState<S1DemoSlotId | null>(null);
   /** Slot / screen currently uploading — shows spinner; on success opens Position & zoom. */
   const [uploading, setUploading] = useState<UploadingTarget | null>(null);
   const s1FileInputRef = useRef<HTMLInputElement>(null);
-  const s1PickSlotRef = useRef<S1DemoSlotId | null>(null);
+  const s1PickSlotRef = useRef<{
+    slot: S1DemoSlotId;
+    resetAdjust: boolean;
+  } | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch(salonxApiUrl("/api/config"));
@@ -467,8 +472,8 @@ export function BuildStationApp() {
   const locked = working ? working.screenLocks[screenTab] : false;
   const uploadBusy = uploading !== null;
 
-  const handleS1PreviewSlotClick = useCallback(
-    (slot: S1DemoSlotId) => {
+  const openS1FilePicker = useCallback(
+    (slot: S1DemoSlotId, resetAdjust: boolean) => {
       if (busy || locked || uploadBusy || !working) return;
       const input = s1FileInputRef.current;
       if (input) {
@@ -477,30 +482,77 @@ export function BuildStationApp() {
             ? "image/*,video/mp4,video/webm,video/quicktime,video/*,.mp4,.webm,.mov,.m4v,.heic,.heif"
             : "image/*,.heic,.heif";
       }
-      const url = working.s1Demo.images[slot]?.trim();
-      if (url) {
-        setAdjustModal({ kind: "s1", slot });
-        return;
-      }
-      s1PickSlotRef.current = slot;
+      s1PickSlotRef.current = { slot, resetAdjust };
       queueMicrotask(() => s1FileInputRef.current?.click());
     },
     [busy, locked, uploadBusy, working],
+  );
+
+  const removeS1SlotMedia = useCallback(
+    async (slot: S1DemoSlotId) => {
+      if (!working) return;
+      const cleared = clampAdjust({
+        scale: 1,
+        rotate: 0,
+        tx: 0,
+        ty: 0,
+        fit: "contain",
+      });
+      const updated: BrandProfile = {
+        ...working,
+        s1Demo: {
+          ...working.s1Demo,
+          images: { ...working.s1Demo.images, [slot]: "" },
+          adjust: { ...working.s1Demo.adjust, [slot]: cleared },
+          mediaKinds: {
+            ...working.s1Demo.mediaKinds,
+            ...(slot === "curveStrip" ? { curveStrip: "image" as const } : {}),
+          },
+        },
+      };
+      setWorking(updated);
+      setS1SlotAction(null);
+      setAdjustModal(null);
+      await persistBrandToServer(updated, { activate: false });
+    },
+    [working, persistBrandToServer],
+  );
+
+  const handleS1PreviewSlotClick = useCallback(
+    (slot: S1DemoSlotId) => {
+      if (busy || locked || uploadBusy || !working) return;
+      const url = working.s1Demo.images[slot]?.trim();
+      if (url) {
+        setS1SlotAction(slot);
+        return;
+      }
+      openS1FilePicker(slot, true);
+    },
+    [busy, locked, uploadBusy, working, openS1FilePicker],
   );
 
   const onS1SlotFileSelected = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       const input = e.target;
       const f = input.files?.[0];
-      const slot = s1PickSlotRef.current;
+      const pick = s1PickSlotRef.current;
       input.value = "";
-      if (!f || !slot || locked || uploadBusy) return;
+      if (!f || !pick || locked || uploadBusy) return;
+      const { slot, resetAdjust } = pick;
+      s1PickSlotRef.current = null;
       void (async () => {
         setUploading({ kind: "s1", slot });
         setError(null);
         try {
           const url = await uploadFor(f);
           const isVideo = slot === "curveStrip" && fileLooksLikeVideo(f);
+          const clearedAdjust = clampAdjust({
+            scale: 1,
+            rotate: 0,
+            tx: 0,
+            ty: 0,
+            fit: "contain",
+          });
           setWorking((prev) => {
             if (!prev) return prev;
             const next: BrandProfile = {
@@ -510,6 +562,10 @@ export function BuildStationApp() {
                 images: {
                   ...prev.s1Demo.images,
                   [slot]: url,
+                },
+                adjust: {
+                  ...prev.s1Demo.adjust,
+                  ...(resetAdjust ? { [slot]: clearedAdjust } : {}),
                 },
                 mediaKinds: {
                   ...prev.s1Demo.mediaKinds,
@@ -524,6 +580,7 @@ export function BuildStationApp() {
             });
             return next;
           });
+          setS1SlotAction(null);
           setAdjustModal({ kind: "s1", slot });
         } catch (e) {
           setError(
@@ -690,12 +747,13 @@ export function BuildStationApp() {
 
               <HowItWorksPanel>
                 <p>
-                  Tap a slot on the phone preview to upload, or use{" "}
+                  Tap an empty slot to upload. Tap a filled slot for{" "}
+                  <strong className="font-semibold">Replace</strong>,{" "}
+                  <strong className="font-semibold">New upload</strong>, or{" "}
+                  <strong className="font-semibold">Remove</strong>. After upload, use{" "}
                   <strong className="font-semibold">Position &amp; Zoom</strong> to adjust.{" "}
                   <strong className="font-semibold">Curve strip</strong> accepts image or video (MP4,
-                  WebM, MOV) like Marquee — videos use the same resize dialog. Use{" "}
-                  <strong className="font-semibold">Remove image</strong> in the dialog to clear a
-                  slot.
+                  WebM, MOV) like Marquee.
                 </p>
               </HowItWorksPanel>
             </div>
@@ -1113,6 +1171,31 @@ export function BuildStationApp() {
         ) : null}
       </div>
 
+      {s1SlotAction && working ? (
+        <S1SlotMediaActionDialog
+          open
+          slotLabel={S1_SLOT_LABELS[s1SlotAction]}
+          mediaKind={
+            s1SlotAction === "curveStrip" &&
+            working.s1Demo.mediaKinds?.curveStrip === "video"
+              ? "video"
+              : "image"
+          }
+          onClose={() => setS1SlotAction(null)}
+          onReplace={() => {
+            const slot = s1SlotAction;
+            setS1SlotAction(null);
+            openS1FilePicker(slot, false);
+          }}
+          onNewUpload={() => {
+            const slot = s1SlotAction;
+            setS1SlotAction(null);
+            openS1FilePicker(slot, true);
+          }}
+          onRemove={() => void removeS1SlotMedia(s1SlotAction)}
+        />
+      ) : null}
+
       {adjustModal && working ? (
         <VisualImageAdjustModal
           open
@@ -1198,29 +1281,7 @@ export function BuildStationApp() {
             adjustModal.kind === "s1"
               ? async () => {
                   const slot = adjustModal.slot;
-                  if (!working) return;
-                  const cleared = clampAdjust({
-                    scale: 1,
-                    rotate: 0,
-                    tx: 0,
-                    ty: 0,
-                    fit: "contain",
-                  });
-                  const updated: BrandProfile = {
-                    ...working,
-                    s1Demo: {
-                      ...working.s1Demo,
-                      images: { ...working.s1Demo.images, [slot]: "" },
-                      adjust: { ...working.s1Demo.adjust, [slot]: cleared },
-                      mediaKinds: {
-                        ...working.s1Demo.mediaKinds,
-                        ...(slot === "curveStrip" ? { curveStrip: "image" as const } : {}),
-                      },
-                    },
-                  };
-                  setWorking(updated);
-                  setAdjustModal(null);
-                  await persistBrandToServer(updated, { activate: false });
+                  await removeS1SlotMedia(slot);
                 }
               : undefined
           }
