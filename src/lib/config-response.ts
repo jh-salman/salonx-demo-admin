@@ -18,6 +18,16 @@ export function absolutizeConfigImages(
     for (const slot of S1_DEMO_SLOT_IDS as S1DemoSlotId[]) {
       brand.s1Demo.images[slot] = absolutizeUrl(brand.s1Demo.images[slot], origin);
     }
+    const hist = brand.s1Demo.uploadHistory;
+    if (hist && typeof hist === "object") {
+      for (const slot of S1_DEMO_SLOT_IDS as S1DemoSlotId[]) {
+        const items = hist[slot];
+        if (!items?.length) continue;
+        for (const item of items) {
+          item.url = absolutizeUrl(item.url, origin);
+        }
+      }
+    }
     brand.s2.image = absolutizeUrl(brand.s2.image, origin);
     brand.s4.image = absolutizeUrl(brand.s4.image, origin);
     if (brand.s4.headerLogo) {

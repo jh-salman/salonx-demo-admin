@@ -5,6 +5,12 @@ import {
   syncLegacyFromActiveVariants,
   type S1DemoWithVariants,
 } from "@/lib/s1-demo-variants";
+import {
+  normalizeUploadHistoryField,
+  seedUploadHistoryFromSlotState,
+  mergeUploadHistories,
+  type S1DemoWithHistory,
+} from "@/lib/s1-demo-upload-history";
 
 export type S1DemoSlotId = "topBar" | "hero" | "promo" | "curveStrip";
 
@@ -90,6 +96,13 @@ export type BrandProfile = {
       Record<
         S1DemoSlotId,
         import("@/lib/s1-demo-variants").S1DemoSlotVariantSet
+      >
+    >;
+    /** Previous uploads per slot (newest first) for Build Station memory picker. */
+    uploadHistory?: Partial<
+      Record<
+        S1DemoSlotId,
+        import("@/lib/s1-demo-upload-history").S1DemoUploadHistoryItem[]
       >
     >;
   };
@@ -259,6 +272,15 @@ export function normalizeBrand(b: unknown, fallbackId: string, fallbackName: str
       base.s1Demo.mediaKinds = synced.mediaKinds;
       base.s1Demo.variants = synced.variants;
     }
+    const uploadHistory = normalizeUploadHistoryField(
+      (s1 as { uploadHistory?: unknown }).uploadHistory,
+    );
+    let withHistory = base.s1Demo as S1DemoWithHistory;
+    if (uploadHistory) {
+      withHistory = mergeUploadHistories(withHistory, uploadHistory);
+    }
+    const seeded = seedUploadHistoryFromSlotState(withHistory);
+    base.s1Demo.uploadHistory = seeded.uploadHistory;
   }
 
   base.s2 = normalizeSimpleScreen(o.s2);

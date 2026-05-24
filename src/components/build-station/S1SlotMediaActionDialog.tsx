@@ -1,12 +1,21 @@
 "use client";
 
+import { S1MediaThumb } from "@/components/build-station/S1MediaThumb";
+import type { S1DemoSlotAdjust } from "@/lib/salonx-config";
 import type { S1DemoSlotVariantSet } from "@/lib/s1-demo-variants";
+
+type MediaPreview = {
+  url: string;
+  kind: "image" | "video";
+  adjust?: S1DemoSlotAdjust;
+};
 
 type Props = {
   open: boolean;
   slotLabel: string;
   mediaKind?: "image" | "video";
   variantSet?: S1DemoSlotVariantSet | null;
+  currentPreview?: MediaPreview | null;
   maxVariants?: number;
   onClose: () => void;
   onReplace: () => void;
@@ -21,6 +30,7 @@ export function S1SlotMediaActionDialog({
   slotLabel,
   mediaKind = "image",
   variantSet = null,
+  currentPreview = null,
   maxVariants = 3,
   onClose,
   onReplace,
@@ -35,6 +45,8 @@ export function S1SlotMediaActionDialog({
   const variantCount = variantSet?.items.length ?? 0;
   const activeVariantIndex = variantSet?.activeIndex ?? 0;
   const canAddVariant = variantCount < maxVariants;
+  const showVariantGrid = variantCount > 0;
+  const showCurrentOnly = !showVariantGrid && Boolean(currentPreview?.url);
 
   return (
     <div
@@ -58,31 +70,44 @@ export function S1SlotMediaActionDialog({
           Choose what to do with this {mediaLabel} slot.
         </p>
 
-        {variantCount > 0 ? (
+        {showVariantGrid ? (
           <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-900/60 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Saved variants ({variantCount}/{maxVariants})
+              Saved looks ({variantCount}/{maxVariants})
             </p>
-            <div className="mt-2 flex flex-col gap-1.5">
+            <p className="mt-0.5 text-xs text-zinc-500">Tap a thumbnail to switch.</p>
+            <div className="mt-3 grid grid-cols-3 gap-2">
               {variantSet?.items.map((item, index) => {
                 const active = index === activeVariantIndex;
                 return (
-                  <button
+                  <S1MediaThumb
                     key={item.id}
-                    type="button"
-                    className={`rounded-lg px-3 py-2 text-left text-sm font-medium ${
-                      active
-                        ? "bg-blue-600 text-white"
-                        : "bg-zinc-950 text-zinc-200 hover:bg-zinc-800"
+                    preview={{
+                      url: item.url,
+                      kind: item.kind,
+                      adjust: item.adjust,
+                    }}
+                    active={active}
+                    label={`Look ${index + 1}${active ? ", live on device" : ""}${
+                      item.kind === "video" ? ", video" : ""
                     }`}
                     onClick={() => onSelectVariant?.(index)}
-                  >
-                    Variant {index + 1}
-                    {item.kind === "video" ? " · video" : ""}
-                    {active ? " · active" : ""}
-                  </button>
+                  />
                 );
               })}
+            </div>
+          </div>
+        ) : showCurrentOnly && currentPreview ? (
+          <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-900/60 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Current {mediaLabel}
+            </p>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <S1MediaThumb
+                preview={currentPreview}
+                active
+                label={`Current ${mediaLabel} in this slot`}
+              />
             </div>
           </div>
         ) : null}
@@ -108,7 +133,7 @@ export function S1SlotMediaActionDialog({
               className="rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm font-semibold text-zinc-100 hover:bg-zinc-800"
               onClick={onAddVariant}
             >
-              Add variant ({variantCount}/{maxVariants})
+              Add another look ({variantCount}/{maxVariants})
             </button>
           ) : null}
           <button

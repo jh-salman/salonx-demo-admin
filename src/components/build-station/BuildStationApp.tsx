@@ -2,6 +2,8 @@
 
 import { VisualImageAdjustModal } from "@/components/build-station/VisualImageAdjustModal";
 import { S1SlotMediaActionDialog } from "@/components/build-station/S1SlotMediaActionDialog";
+import { S1MediaSourceDialog } from "@/components/build-station/S1MediaSourceDialog";
+import { S1UploadHistoryDialog } from "@/components/build-station/S1UploadHistoryDialog";
 import { S1CurveMaskPreviewIframe } from "@/components/s1-preview/S1CurveMaskPreviewIframe";
 import {
   CLIMAX_BRANDBAR_H,
@@ -16,6 +18,13 @@ import {
   SLOT_DISPLAY_BOX,
   slotImageTransform,
 } from "@/lib/s1-slot-geometry";
+import {
+  applyHistoryToSlot,
+  getSlotUploadHistory,
+  mergeUploadHistories,
+  patchS1DemoSlotWithHistory,
+  type S1MediaPickMode,
+} from "@/lib/s1-demo-upload-history";
 import {
   activateSlotVariant,
   addSlotVariantFromLegacy,
@@ -262,6 +271,14 @@ export function BuildStationApp() {
   const [message, setMessage] = useState<string | null>(null);
   const [adjustModal, setAdjustModal] = useState<AdjustModalTarget | null>(null);
   const [s1SlotAction, setS1SlotAction] = useState<S1DemoSlotId | null>(null);
+  const [s1MediaSourcePick, setS1MediaSourcePick] = useState<{
+    slot: S1DemoSlotId;
+    mode: S1MediaPickMode;
+  } | null>(null);
+  const [s1HistoryPick, setS1HistoryPick] = useState<{
+    slot: S1DemoSlotId;
+    mode: S1MediaPickMode;
+  } | null>(null);
   /** Slot / screen currently uploading — shows spinner; on success opens Position & zoom. */
   const [uploading, setUploading] = useState<UploadingTarget | null>(null);
   const s1FileInputRef = useRef<HTMLInputElement>(null);
@@ -358,6 +375,12 @@ export function BuildStationApp() {
               ...merged.s4,
               headerLogoAdjust: brand.s4.headerLogoAdjust,
             };
+          }
+          if (brand.s1Demo.uploadHistory) {
+            merged.s1Demo = mergeUploadHistories(
+              merged.s1Demo,
+              brand.s1Demo.uploadHistory,
+            );
           }
           setWorking(merged);
         }
@@ -497,6 +520,11 @@ export function BuildStationApp() {
     [busy, locked, uploadBusy, working],
   );
 
+  const beginS1MediaPick = useCallback((slot: S1DemoSlotId, mode: S1MediaPickMode) => {
+    setS1SlotAction(null);
+    setS1MediaSourcePick({ slot, mode });
+  }, []);
+
   const removeS1SlotMedia = useCallback(
     async (slot: S1DemoSlotId) => {
       if (!working) return;
@@ -538,9 +566,13 @@ export function BuildStationApp() {
         setS1SlotAction(slot);
         return;
       }
+      if (getSlotUploadHistory(working.s1Demo, slot).length > 0) {
+        beginS1MediaPick(slot, "newUpload");
+        return;
+      }
       openS1FilePicker(slot, true);
     },
-    [busy, locked, uploadBusy, working, openS1FilePicker],
+    [busy, locked, uploadBusy, working, openS1FilePicker, beginS1MediaPick],
   );
 
   const onS1SlotFileSelected = useCallback(
@@ -569,15 +601,23 @@ export function BuildStationApp() {
             if (!prev) return prev;
             let nextS1Demo = prev.s1Demo;
             if (addVariant) {
-              nextS1Demo = addSlotVariantFromLegacy(
-                prev.s1Demo,
+              nextS1Demo = patchS1DemoSlotWithHistory(
+                addSlotVariantFromLegacy(
+                  prev.s1Demo,
+                  slot,
+                  url,
+                  isVideo ? "video" : "image",
+                  clearedAdjust,
+                ) as typeof prev.s1Demo,
                 slot,
-                url,
-                isVideo ? "video" : "image",
-                clearedAdjust,
+                {
+                  url,
+                  kind: isVideo ? "video" : "image",
+                  adjust: clearedAdjust,
+                },
               );
             } else {
-              nextS1Demo = patchS1DemoSlotLegacy(prev.s1Demo, slot, {
+              nextS1Demo = patchS1DemoSlotWithHistory(prev.s1Demo, slot, {
                 url,
                 kind: isVideo ? "video" : "image",
                 adjust: resetAdjust
@@ -1196,23 +1236,24 @@ export function BuildStationApp() {
               : "image"
           }
           variantSet={getSlotVariantSet(working.s1Demo, s1SlotAction)}
+          currentPreview={
+            working.s1Demo.images[s1SlotAction]?.trim()
+              ? {
+                  url: working.s1Demo.images[s1SlotAction],
+                  kind:
+                    s1SlotAction === "curveStrip" &&
+                    working.s1Demo.mediaKinds?.curveStrip === "video"
+                      ? "video"
+                      : "image",
+                  adjust: working.s1Demo.adjust[s1SlotAction],
+                }
+              : null
+          }
           maxVariants={MAX_S1_SLOT_VARIANTS}
           onClose={() => setS1SlotAction(null)}
-          onReplace={() => {
-            const slot = s1SlotAction;
-            setS1SlotAction(null);
-            openS1FilePicker(slot, false);
-          }}
-          onNewUpload={() => {
-            const slot = s1SlotAction;
-            setS1SlotAction(null);
-            openS1FilePicker(slot, true);
-          }}
-          onAddVariant={() => {
-            const slot = s1SlotAction;
-            setS1SlotAction(null);
-            openS1FilePicker(slot, true, true);
-          }}
+          onReplace={() => beginS1MediaPick(s1SlotAction, "replace")}
+          onNewUpload={() => beginS1MediaPick(s1SlotAction, "newUpload")}
+          onAddVariant={() => beginS1MediaPick(s1SlotAction, "addVariant")}
           onSelectVariant={(index) => {
             const slot = s1SlotAction;
             const updated: BrandProfile = {
@@ -1223,6 +1264,54 @@ export function BuildStationApp() {
             void persistBrandToServer(updated, { activate: false });
           }}
           onRemove={() => void removeS1SlotMedia(s1SlotAction)}
+        />
+      ) : null}
+
+      {s1MediaSourcePick && working ? (
+        <S1MediaSourceDialog
+          open
+          slotLabel={S1_SLOT_LABELS[s1MediaSourcePick.slot]}
+          mode={s1MediaSourcePick.mode}
+          historyCount={getSlotUploadHistory(working.s1Demo, s1MediaSourcePick.slot).length}
+          onClose={() => {
+            const slot = s1MediaSourcePick.slot;
+            setS1MediaSourcePick(null);
+            setS1SlotAction(slot);
+          }}
+          onPickGallery={() => {
+            const { slot, mode } = s1MediaSourcePick;
+            openS1FilePicker(slot, mode !== "replace", mode === "addVariant");
+            setS1MediaSourcePick(null);
+          }}
+          onPickHistory={() => {
+            setS1HistoryPick(s1MediaSourcePick);
+            setS1MediaSourcePick(null);
+          }}
+        />
+      ) : null}
+
+      {s1HistoryPick && working ? (
+        <S1UploadHistoryDialog
+          open
+          slotLabel={S1_SLOT_LABELS[s1HistoryPick.slot]}
+          mode={s1HistoryPick.mode}
+          items={getSlotUploadHistory(working.s1Demo, s1HistoryPick.slot)}
+          activeUrl={working.s1Demo.images[s1HistoryPick.slot]}
+          onClose={() => {
+            setS1MediaSourcePick(s1HistoryPick);
+            setS1HistoryPick(null);
+          }}
+          onSelect={(item) => {
+            const { slot, mode } = s1HistoryPick;
+            const updated: BrandProfile = {
+              ...working,
+              s1Demo: applyHistoryToSlot(working.s1Demo, slot, item, mode),
+            };
+            setWorking(updated);
+            setS1HistoryPick(null);
+            setAdjustModal({ kind: "s1", slot });
+            void persistBrandToServer(updated, { activate: false });
+          }}
         />
       ) : null}
 
@@ -1290,7 +1379,7 @@ export function BuildStationApp() {
               const slot = adjustModal.slot;
               updated = {
                 ...working,
-                s1Demo: patchS1DemoSlotLegacy(working.s1Demo, slot, {
+                s1Demo: patchS1DemoSlotWithHistory(working.s1Demo, slot, {
                   adjust: clamped,
                 }),
               };
