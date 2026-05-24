@@ -16,6 +16,14 @@ import {
   SLOT_DISPLAY_BOX,
   slotImageTransform,
 } from "@/lib/s1-slot-geometry";
+import {
+  activateSlotVariant,
+  addSlotVariantFromLegacy,
+  clearSlotVariants,
+  getSlotVariantSet,
+  MAX_S1_SLOT_VARIANTS,
+  patchS1DemoSlotLegacy,
+} from "@/lib/s1-demo-variants";
 import { uploadToCloudinaryFromBrowser } from "@/lib/cloudinary-browser-upload";
 import {
   BUILD_SCREEN_IDS,
@@ -260,6 +268,7 @@ export function BuildStationApp() {
   const s1PickSlotRef = useRef<{
     slot: S1DemoSlotId;
     resetAdjust: boolean;
+    addVariant?: boolean;
   } | null>(null);
 
   const load = useCallback(async () => {
@@ -473,7 +482,7 @@ export function BuildStationApp() {
   const uploadBusy = uploading !== null;
 
   const openS1FilePicker = useCallback(
-    (slot: S1DemoSlotId, resetAdjust: boolean) => {
+    (slot: S1DemoSlotId, resetAdjust: boolean, addVariant = false) => {
       if (busy || locked || uploadBusy || !working) return;
       const input = s1FileInputRef.current;
       if (input) {
@@ -482,7 +491,7 @@ export function BuildStationApp() {
             ? "image/*,video/mp4,video/webm,video/quicktime,video/*,.mp4,.webm,.mov,.m4v,.heic,.heif"
             : "image/*,.heic,.heif";
       }
-      s1PickSlotRef.current = { slot, resetAdjust };
+      s1PickSlotRef.current = { slot, resetAdjust, addVariant };
       queueMicrotask(() => s1FileInputRef.current?.click());
     },
     [busy, locked, uploadBusy, working],
@@ -500,15 +509,18 @@ export function BuildStationApp() {
       });
       const updated: BrandProfile = {
         ...working,
-        s1Demo: {
-          ...working.s1Demo,
-          images: { ...working.s1Demo.images, [slot]: "" },
-          adjust: { ...working.s1Demo.adjust, [slot]: cleared },
-          mediaKinds: {
-            ...working.s1Demo.mediaKinds,
-            ...(slot === "curveStrip" ? { curveStrip: "image" as const } : {}),
+        s1Demo: clearSlotVariants(
+          {
+            ...working.s1Demo,
+            images: { ...working.s1Demo.images, [slot]: "" },
+            adjust: { ...working.s1Demo.adjust, [slot]: cleared },
+            mediaKinds: {
+              ...working.s1Demo.mediaKinds,
+              ...(slot === "curveStrip" ? { curveStrip: "image" as const } : {}),
+            },
           },
-        },
+          slot,
+        ),
       };
       setWorking(updated);
       setS1SlotAction(null);
@@ -538,7 +550,7 @@ export function BuildStationApp() {
       const pick = s1PickSlotRef.current;
       input.value = "";
       if (!f || !pick || locked || uploadBusy) return;
-      const { slot, resetAdjust } = pick;
+      const { slot, resetAdjust, addVariant } = pick;
       s1PickSlotRef.current = null;
       void (async () => {
         setUploading({ kind: "s1", slot });
@@ -555,25 +567,27 @@ export function BuildStationApp() {
           });
           setWorking((prev) => {
             if (!prev) return prev;
+            let nextS1Demo = prev.s1Demo;
+            if (addVariant) {
+              nextS1Demo = addSlotVariantFromLegacy(
+                prev.s1Demo,
+                slot,
+                url,
+                isVideo ? "video" : "image",
+                clearedAdjust,
+              );
+            } else {
+              nextS1Demo = patchS1DemoSlotLegacy(prev.s1Demo, slot, {
+                url,
+                kind: isVideo ? "video" : "image",
+                adjust: resetAdjust
+                  ? clearedAdjust
+                  : prev.s1Demo.adjust[slot],
+              });
+            }
             const next: BrandProfile = {
               ...prev,
-              s1Demo: {
-                ...prev.s1Demo,
-                images: {
-                  ...prev.s1Demo.images,
-                  [slot]: url,
-                },
-                adjust: {
-                  ...prev.s1Demo.adjust,
-                  ...(resetAdjust ? { [slot]: clearedAdjust } : {}),
-                },
-                mediaKinds: {
-                  ...prev.s1Demo.mediaKinds,
-                  ...(slot === "curveStrip"
-                    ? { curveStrip: isVideo ? ("video" as const) : ("image" as const) }
-                    : {}),
-                },
-              },
+              s1Demo: nextS1Demo,
             };
             queueMicrotask(() => {
               void persistBrandToServer(next, { activate: false });
@@ -1181,6 +1195,8 @@ export function BuildStationApp() {
               ? "video"
               : "image"
           }
+          variantSet={getSlotVariantSet(working.s1Demo, s1SlotAction)}
+          maxVariants={MAX_S1_SLOT_VARIANTS}
           onClose={() => setS1SlotAction(null)}
           onReplace={() => {
             const slot = s1SlotAction;
@@ -1191,6 +1207,20 @@ export function BuildStationApp() {
             const slot = s1SlotAction;
             setS1SlotAction(null);
             openS1FilePicker(slot, true);
+          }}
+          onAddVariant={() => {
+            const slot = s1SlotAction;
+            setS1SlotAction(null);
+            openS1FilePicker(slot, true, true);
+          }}
+          onSelectVariant={(index) => {
+            const slot = s1SlotAction;
+            const updated: BrandProfile = {
+              ...working,
+              s1Demo: activateSlotVariant(working.s1Demo, slot, index),
+            };
+            setWorking(updated);
+            void persistBrandToServer(updated, { activate: false });
           }}
           onRemove={() => void removeS1SlotMedia(s1SlotAction)}
         />
@@ -1260,10 +1290,9 @@ export function BuildStationApp() {
               const slot = adjustModal.slot;
               updated = {
                 ...working,
-                s1Demo: {
-                  ...working.s1Demo,
-                  adjust: { ...working.s1Demo.adjust, [slot]: clamped },
-                },
+                s1Demo: patchS1DemoSlotLegacy(working.s1Demo, slot, {
+                  adjust: clamped,
+                }),
               };
             } else if (adjustModal.kind === "s4-header") {
               updated = {
