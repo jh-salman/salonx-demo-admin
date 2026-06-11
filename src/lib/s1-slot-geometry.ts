@@ -106,29 +106,24 @@ export const S1_LAYOUT = {
 } as const;
 
 /**
- * Climax co-brand strip — keep in sync with `salonx-web-v2` `climax.css`
- * (`--climax-brandbar-h`, `.climax-brandbar__logo`).
+ * Climax co-brand strip — mirror `salonx-web-v2` `climax.css` (do not change demo app).
+ * `--climax-brandbar-h: 115px`; `.climax-brandbar__logoWrap` is `inset: 0` (full strip).
  */
-export const CLIMAX_BRANDBAR_H = 92;
+export const CLIMAX_BRANDBAR_H = 115;
 
-/** Logical logo bounds on a 393px-wide handset (`max-width: min(240px, 62vw)` × `height: 70px`). */
-export const CLIMAX_HEADER_LOGO_BOX = { w: 240, h: 70 } as const;
+/** Logical co-brand bounds @393px — full brandbar width × bar height. */
+export const CLIMAX_HEADER_LOGO_BOX = { w: S1_FRAME_W, h: CLIMAX_BRANDBAR_H } as const;
 export const CLIMAX_HEADER_LOGO_ASPECT =
   CLIMAX_HEADER_LOGO_BOX.w / CLIMAX_HEADER_LOGO_BOX.h;
 
-/** Device max logo width at a given frame width (matches `min(240px, 62vw)`). */
-export function climaxHeaderLogoMaxWidthAtFrame(frameW = S1_FRAME_W): number {
-  return Math.min(CLIMAX_HEADER_LOGO_BOX.w, frameW * 0.62);
-}
-
-/** Scaled brandbar + logo box for Build Station handset preview. */
+/** Scaled brandbar + full-bleed logo for Build Station handset preview. */
 export function climaxHeaderLogoPreviewMetrics(previewFrameW: number) {
   const scale = previewFrameW / S1_FRAME_W;
-  const logoMaxW = climaxHeaderLogoMaxWidthAtFrame();
+  const brandbarH = CLIMAX_BRANDBAR_H * scale;
   return {
-    brandbarH: CLIMAX_BRANDBAR_H * scale,
-    logoH: CLIMAX_HEADER_LOGO_BOX.h * scale,
-    logoMaxW: logoMaxW * scale,
+    brandbarH,
+    logoH: brandbarH,
+    logoMaxW: previewFrameW,
   };
 }
 

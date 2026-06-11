@@ -55,6 +55,7 @@ export async function PATCH(request: Request, ctx: RouteCtx) {
     price?: number;
     notes?: string;
     seriesId?: string | null;
+    staffId?: string | null;
   } = {};
 
   if (typeof b.clientName === "string") {
@@ -88,6 +89,8 @@ export async function PATCH(request: Request, ctx: RouteCtx) {
   if (typeof b.notes === "string") data.notes = b.notes.trim().slice(0, 4000);
   if (b.seriesId === null) data.seriesId = null;
   else if (typeof b.seriesId === "string") data.seriesId = b.seriesId.trim() || null;
+  if (b.staffId === null) data.staffId = null;
+  else if (typeof b.staffId === "string") data.staffId = b.staffId.trim() || null;
 
   if (Object.keys(data).length === 0) {
     return withCors(NextResponse.json({ error: "No fields to update" }, { status: 400 }));

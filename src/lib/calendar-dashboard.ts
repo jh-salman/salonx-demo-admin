@@ -52,6 +52,11 @@ export type DashboardCatalogProduct = {
   stationTag?: string;
 };
 
+export type DashboardCatalogStaff = {
+  id: string;
+  name: string;
+};
+
 export type CalendarDashboardData = {
   dbConfigured: boolean;
   /** Where counts/lists were loaded from. */
@@ -64,6 +69,7 @@ export type CalendarDashboardData = {
     clients: number;
     services: number;
     products: number;
+    staff: number;
   };
   upcomingAppointments: DashboardAppointment[];
   waitlist: DashboardWaitlistItem[];
@@ -75,6 +81,8 @@ export type CalendarDashboardData = {
   catalogServices: DashboardCatalogService[];
   /** Product catalog (mock products mirrored in Postgres). */
   catalogProducts: DashboardCatalogProduct[];
+  /** Staff roster — calendar day-view columns. */
+  catalogStaff: DashboardCatalogStaff[];
 };
 
 function asRecord(v: unknown): Record<string, unknown> | null {
@@ -192,6 +200,21 @@ function parseProducts(items: unknown[]): DashboardCatalogProduct[] {
   return out;
 }
 
+function parseStaff(items: unknown[]): DashboardCatalogStaff[] {
+  const out: DashboardCatalogStaff[] = [];
+  for (const raw of items) {
+    const o = asRecord(raw);
+    if (!o) continue;
+    const name = typeof o.name === "string" ? o.name : "";
+    if (!name) continue;
+    out.push({
+      id: typeof o.id === "string" ? o.id : `staff-${out.length}`,
+      name,
+    });
+  }
+  return out;
+}
+
 function buildDashboard(input: {
   dataSource: CalendarDashboardData["dataSource"];
   apiOrigin?: string;
@@ -201,6 +224,7 @@ function buildDashboard(input: {
   clientItems: unknown[];
   serviceItems: unknown[];
   productItems: unknown[];
+  staffItems: unknown[];
 }): CalendarDashboardData {
   const now = Date.now();
   const waitlist = parseWaitlist(input.toolbarEvents);
@@ -208,6 +232,7 @@ function buildDashboard(input: {
   const catalogClients = parseClients(input.clientItems);
   const catalogServices = parseServices(input.serviceItems);
   const catalogProducts = parseProducts(input.productItems);
+  const catalogStaff = parseStaff(input.staffItems);
 
   const upcomingAppointments = input.appointmentRows
     .filter((r) => new Date(r.end).getTime() >= now)
@@ -224,6 +249,7 @@ function buildDashboard(input: {
       clients: input.clientItems.length,
       services: input.serviceItems.length,
       products: catalogProducts.length,
+      staff: catalogStaff.length,
     },
     upcomingAppointments,
     waitlist,
@@ -232,6 +258,7 @@ function buildDashboard(input: {
     catalogClients,
     catalogServices,
     catalogProducts,
+    catalogStaff,
   };
 }
 
@@ -245,6 +272,7 @@ const emptyDashboard: CalendarDashboardData = {
     clients: 0,
     services: 0,
     products: 0,
+    staff: 0,
   },
   upcomingAppointments: [],
   waitlist: [],
@@ -253,7 +281,10 @@ const emptyDashboard: CalendarDashboardData = {
   catalogClients: [],
   catalogServices: [],
   catalogProducts: [],
+  catalogStaff: [],
 };
+
+const REMOTE_FETCH_TIMEOUT_MS = 10_000;
 
 async function demoApiFetch<T>(path: string, init?: RequestInit): Promise<T | null> {
   const origin = salonxApiOrigin();
@@ -262,6 +293,7 @@ async function demoApiFetch<T>(path: string, init?: RequestInit): Promise<T | nu
   try {
     const res = await fetch(url, {
       cache: "no-store",
+      signal: AbortSignal.timeout(REMOTE_FETCH_TIMEOUT_MS),
       ...init,
       headers: {
         ...(init?.headers ?? {}),
@@ -309,6 +341,10 @@ type ProductCatalogResponse = {
   products?: unknown[];
 };
 
+type StaffCatalogResponse = {
+  staff?: unknown[];
+};
+
 async function loadFromDemoApi(origin: string): Promise<CalendarDashboardData | null> {
   const now = new Date();
   const from = new Date(now.getTime() - 120 * 24 * 60 * 60 * 1000);
@@ -318,15 +354,17 @@ async function loadFromDemoApi(origin: string): Promise<CalendarDashboardData | 
     to: to.toISOString(),
   });
 
-  const [aptsRes, toolbarRes, clientsRes, servicesRes, productsRes] = await Promise.all([
+  const [aptsRes, toolbarRes, clientsRes, servicesRes, productsRes, staffRes] =
+    await Promise.all([
     demoApiFetch<AppointmentsListResponse>(`/api/appointments?${qs}`),
     demoApiFetch<ToolbarResponse>("/api/calendar-toolbar"),
     demoApiFetch<ClientsResponse>("/api/clients"),
     demoApiFetch<ServiceCatalogResponse>("/api/service-catalog"),
     demoApiFetch<ProductCatalogResponse>("/api/product-catalog"),
+    demoApiFetch<StaffCatalogResponse>("/api/staff"),
   ]);
 
-  if (!aptsRes && !toolbarRes && !clientsRes && !servicesRes && !productsRes) {
+  if (!aptsRes && !toolbarRes && !clientsRes && !servicesRes && !productsRes && !staffRes) {
     return null;
   }
 
@@ -348,6 +386,7 @@ async function loadFromDemoApi(origin: string): Promise<CalendarDashboardData | 
     clientItems: Array.isArray(clientsRes?.clients) ? clientsRes.clients : [],
     serviceItems: Array.isArray(servicesRes?.serviceCatalog) ? servicesRes.serviceCatalog : [],
     productItems: Array.isArray(productsRes?.products) ? productsRes.products : [],
+    staffItems: Array.isArray(staffRes?.staff) ? staffRes.staff : [],
   });
 }
 
@@ -369,7 +408,10 @@ async function loadFromLocalNextApi(): Promise<CalendarDashboardData | null> {
 
   const fetchLocal = async <T,>(path: string): Promise<T | null> => {
     try {
-      const res = await fetch(`${base}${path}`, { cache: "no-store" });
+      const res = await fetch(`${base}${path}`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(8_000),
+      });
       if (!res.ok) return null;
       return (await res.json()) as T;
     } catch {
@@ -377,12 +419,14 @@ async function loadFromLocalNextApi(): Promise<CalendarDashboardData | null> {
     }
   };
 
-  const [aptsRes, toolbarRes, clientsRes, servicesRes, productsRes] = await Promise.all([
+  const [aptsRes, toolbarRes, clientsRes, servicesRes, productsRes, staffRes] =
+    await Promise.all([
     fetchLocal<AppointmentsListResponse>(`/api/appointments?${qs}`),
     fetchLocal<ToolbarResponse>("/api/calendar-toolbar"),
     fetchLocal<ClientsResponse>("/api/clients"),
     fetchLocal<ServiceCatalogResponse>("/api/service-catalog"),
     fetchLocal<ProductCatalogResponse>("/api/product-catalog"),
+    fetchLocal<StaffCatalogResponse>("/api/staff"),
   ]);
 
   if (!aptsRes && !toolbarRes) return null;
@@ -405,6 +449,7 @@ async function loadFromLocalNextApi(): Promise<CalendarDashboardData | null> {
     clientItems: Array.isArray(clientsRes?.clients) ? clientsRes.clients : [],
     serviceItems: Array.isArray(servicesRes?.serviceCatalog) ? servicesRes.serviceCatalog : [],
     productItems: Array.isArray(productsRes?.products) ? productsRes.products : [],
+    staffItems: Array.isArray(staffRes?.staff) ? staffRes.staff : [],
   });
 }
 
@@ -416,7 +461,8 @@ async function loadFromPrisma(): Promise<CalendarDashboardData | null> {
   const from = new Date(now.getTime() - 120 * 24 * 60 * 60 * 1000);
   const to = new Date(now.getTime() + 240 * 24 * 60 * 60 * 1000);
 
-  const [appointmentRows, toolbarRow, clientRow, serviceRow, productRow] = await Promise.all([
+  const [appointmentRows, toolbarRow, clientRow, serviceRow, productRow, staffRow] =
+    await Promise.all([
     prisma.salonxAppointment.findMany({
       where: {
         AND: [{ startAt: { lt: to } }, { endAt: { gt: from } }],
@@ -428,6 +474,7 @@ async function loadFromPrisma(): Promise<CalendarDashboardData | null> {
     prisma.salonxClientCatalog.findUnique({ where: { id: "default" } }),
     prisma.salonxServiceCatalog.findUnique({ where: { id: "default" } }),
     prisma.salonxProductCatalog.findUnique({ where: { id: "default" } }),
+    prisma.salonxStaffCatalog.findUnique({ where: { id: "default" } }),
   ]);
 
   return buildDashboard({
@@ -449,11 +496,14 @@ async function loadFromPrisma(): Promise<CalendarDashboardData | null> {
     clientItems: Array.isArray(clientRow?.items) ? (clientRow.items as unknown[]) : [],
     serviceItems: Array.isArray(serviceRow?.items) ? (serviceRow.items as unknown[]) : [],
     productItems: Array.isArray(productRow?.items) ? (productRow.items as unknown[]) : [],
+    staffItems: Array.isArray(staffRow?.items) ? (staffRow.items as unknown[]) : [],
   });
 }
 
 export async function loadCalendarDashboardData(): Promise<CalendarDashboardData> {
   const origin = salonxApiOrigin();
+  const prisma = getPrisma();
+
   if (origin) {
     try {
       const fromDemo = await loadFromDemoApi(origin);
@@ -463,23 +513,29 @@ export async function loadCalendarDashboardData(): Promise<CalendarDashboardData
     }
   }
 
-  try {
-    const fromLocal = await loadFromLocalNextApi();
-    if (fromLocal) return fromLocal;
-  } catch (e) {
-    console.error("[calendar-dashboard] local API load failed", e);
+  // Prisma before loopback HTTP — same-process `fetch(localhost)` during RSC can
+  // deadlock the Next dev server and spike memory until the machine freezes.
+  if (prisma) {
+    try {
+      const fromDb = await loadFromPrisma();
+      if (fromDb) return fromDb;
+    } catch (e) {
+      console.error("[calendar-dashboard] prisma load failed", e);
+    }
   }
 
-  try {
-    const fromDb = await loadFromPrisma();
-    if (fromDb) return fromDb;
-  } catch (e) {
-    console.error("[calendar-dashboard] prisma load failed", e);
+  if (!origin && !prisma) {
+    try {
+      const fromLocal = await loadFromLocalNextApi();
+      if (fromLocal) return fromLocal;
+    } catch (e) {
+      console.error("[calendar-dashboard] local API load failed", e);
+    }
   }
 
   return {
     ...emptyDashboard,
-    dbConfigured: Boolean(origin || getPrisma()),
+    dbConfigured: Boolean(origin || prisma),
     apiOrigin: origin || undefined,
   };
 }

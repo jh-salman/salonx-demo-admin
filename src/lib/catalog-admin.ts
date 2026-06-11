@@ -22,6 +22,11 @@ export type ProductCatalogInput = {
   stationTag?: string;
 };
 
+export type StaffCatalogInput = {
+  id?: string;
+  name: string;
+};
+
 function asRecord(v: unknown): Record<string, unknown> | null {
   return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 }
@@ -67,6 +72,11 @@ type ProductCatalogResponse = {
 
 type ServiceCatalogResponse = {
   serviceCatalog?: unknown[];
+  updatedAt?: string;
+};
+
+type StaffCatalogResponse = {
+  staff?: unknown[];
   updatedAt?: string;
 };
 
@@ -264,4 +274,96 @@ export async function deleteServiceFromAdmin(id: string): Promise<CatalogResult>
   });
   if (next.length === catalog.length) return { ok: false, error: "Service not found" };
   return saveServices(next, updatedAt);
+}
+
+async function loadStaff(): Promise<{ items: unknown[]; updatedAt?: string }> {
+  if (salonxApiOrigin()) {
+    const current = await demoApiFetch<StaffCatalogResponse>("/api/staff");
+    return {
+      items: Array.isArray(current?.staff) ? [...current!.staff] : [],
+      updatedAt: current?.updatedAt,
+    };
+  }
+  const prisma = getPrisma();
+  if (!prisma) return { items: [] };
+  const row = await prisma.salonxStaffCatalog.findUnique({ where: { id: "default" } });
+  return {
+    items: Array.isArray(row?.items) ? [...(row.items as unknown[])] : [],
+    updatedAt: row?.updatedAt?.toISOString(),
+  };
+}
+
+async function saveStaff(
+  staff: unknown[],
+  expectedUpdatedAt?: string,
+): Promise<CatalogResult> {
+  if (salonxApiOrigin()) {
+    const putRes = await demoApiFetch<StaffCatalogResponse>("/api/staff", {
+      method: "PUT",
+      body: JSON.stringify({
+        staff,
+        ...(expectedUpdatedAt ? { expectedUpdatedAt } : {}),
+      }),
+    });
+    if (!putRes) return { ok: false, error: "Could not save staff catalog" };
+    return { ok: true };
+  }
+  const prisma = getPrisma();
+  if (!prisma) return { ok: false, error: "DATABASE_URL is not configured" };
+  await prisma.salonxStaffCatalog.upsert({
+    where: { id: "default" },
+    create: { id: "default", items: staff as Prisma.InputJsonValue },
+    update: { items: staff as Prisma.InputJsonValue },
+  });
+  return { ok: true };
+}
+
+function normalizeStaffInput(input: StaffCatalogInput): Omit<StaffCatalogInput, "id"> & { id?: string } | null {
+  const name = input.name?.trim();
+  if (!name) return null;
+  const out: Omit<StaffCatalogInput, "id"> & { id?: string } = { name };
+  const id = input.id?.trim();
+  if (id) out.id = id;
+  return out;
+}
+
+export async function addStaffFromAdmin(input: StaffCatalogInput): Promise<CatalogResult> {
+  const member = normalizeStaffInput(input);
+  if (!member) return { ok: false, error: "Staff name is required" };
+  const { items, updatedAt } = await loadStaff();
+  const catalog = repairCatalogIds(items, "staff");
+  catalog.push({ ...member, id: newCatalogId("staff") });
+  return saveStaff(catalog, updatedAt);
+}
+
+export async function updateStaffFromAdmin(input: StaffCatalogInput): Promise<CatalogResult> {
+  const id = input.id?.trim();
+  if (!id) return { ok: false, error: "Missing staff id" };
+  const member = normalizeStaffInput(input);
+  if (!member) return { ok: false, error: "Staff name is required" };
+  const { items, updatedAt } = await loadStaff();
+  const catalog = repairCatalogIds(items, "staff");
+  let found = false;
+  const next = catalog.map((raw) => {
+    const o = asRecord(raw);
+    if (!o || o.id !== id) return raw;
+    found = true;
+    const { id: _drop, ...fields } = member;
+    return { ...o, ...fields, id };
+  });
+  if (!found) return { ok: false, error: "Staff member not found" };
+  return saveStaff(next, updatedAt);
+}
+
+export async function deleteStaffFromAdmin(id: string): Promise<CatalogResult> {
+  const target = id.trim();
+  if (!target) return { ok: false, error: "Missing staff id" };
+  const { items, updatedAt } = await loadStaff();
+  const catalog = repairCatalogIds(items, "staff");
+  const next = catalog.filter((raw) => {
+    const o = asRecord(raw);
+    return !o || o.id !== target;
+  });
+  if (next.length === catalog.length) return { ok: false, error: "Staff member not found" };
+  return saveStaff(next, updatedAt);
 }

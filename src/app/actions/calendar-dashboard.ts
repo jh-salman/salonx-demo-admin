@@ -4,10 +4,13 @@ import { revalidatePath } from "next/cache";
 import {
   addProductFromAdmin,
   addServiceFromAdmin,
+  addStaffFromAdmin,
   deleteProductFromAdmin,
   deleteServiceFromAdmin,
+  deleteStaffFromAdmin,
   updateProductFromAdmin,
   updateServiceFromAdmin,
+  updateStaffFromAdmin,
 } from "@/lib/catalog-admin";
 import {
   addWaitlistEntryFromAdmin,
@@ -92,6 +95,29 @@ export async function updateServiceAction(formData: FormData) {
 
 export async function deleteServiceAction(id: string) {
   const result = await deleteServiceFromAdmin(id);
+  if (result.ok) revalidatePath("/");
+  return result;
+}
+
+export async function addStaffAction(formData: FormData) {
+  const result = await addStaffFromAdmin({
+    name: String(formData.get("name") ?? ""),
+  });
+  if (result.ok) revalidatePath("/");
+  return result;
+}
+
+export async function updateStaffAction(formData: FormData) {
+  const result = await updateStaffFromAdmin({
+    id: String(formData.get("id") ?? ""),
+    name: String(formData.get("name") ?? ""),
+  });
+  if (result.ok) revalidatePath("/");
+  return result;
+}
+
+export async function deleteStaffAction(id: string) {
+  const result = await deleteStaffFromAdmin(id);
   if (result.ok) revalidatePath("/");
   return result;
 }

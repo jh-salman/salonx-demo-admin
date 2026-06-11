@@ -13,8 +13,8 @@ const CALENDAR_EVENTS = [
   "service-catalog:updated",
 ] as const;
 
-const REFRESH_DEBOUNCE_MS = 500;
-const POLL_FALLBACK_MS = 12_000;
+const REFRESH_DEBOUNCE_MS = 800;
+const POLL_FALLBACK_MS = 60_000;
 
 /**
  * Subscribes to demo-api Socket.IO calendar events and refreshes the RSC page.
@@ -38,7 +38,9 @@ export function useCalendarDashboardRealtime(apiOrigin: string | undefined) {
       socket = io(apiOrigin, {
         transports: ["websocket", "polling"],
         reconnection: true,
-        reconnectionAttempts: 8,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 2_000,
+        reconnectionDelayMax: 10_000,
       });
       socket.on("connect", () => setConnected(true));
       socket.on("disconnect", () => setConnected(false));

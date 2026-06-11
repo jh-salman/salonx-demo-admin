@@ -923,32 +923,34 @@ export function BuildStationApp() {
                       )}
                       {key === "s4" && climaxHeaderPreview ? (
                         <div
-                          className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-center bg-gradient-to-b from-black/55 to-transparent px-2"
+                          className="pointer-events-none absolute inset-x-0 top-0 z-10"
                           style={{ height: climaxHeaderPreview.brandbarH }}
                           aria-hidden
                         >
-                          {s4HeaderLogo ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={s4HeaderLogo}
-                              alt=""
-                              className="w-auto drop-shadow-md"
-                              style={{
-                                height: climaxHeaderPreview.logoH,
-                                maxWidth: climaxHeaderPreview.logoMaxW,
-                                objectFit:
-                                  s4HeaderLogoAdjust.fit === "contain"
-                                    ? "contain"
-                                    : "cover",
-                                transform: s4HeaderLogoTransform,
-                                transformOrigin: "center center",
-                              }}
-                            />
-                          ) : (
-                            <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
-                              Header logo
-                            </span>
-                          )}
+                          <div className="absolute inset-0">
+                            {s4HeaderLogo ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={s4HeaderLogo}
+                                alt=""
+                                className="block h-full w-full"
+                                style={{
+                                  objectFit:
+                                    s4HeaderLogoAdjust.fit === "contain"
+                                      ? "contain"
+                                      : "cover",
+                                  objectPosition: "center center",
+                                  transform: s4HeaderLogoTransform,
+                                  transformOrigin: "center center",
+                                  filter: "drop-shadow(0 2px 10px rgba(0, 0, 0, 0.75))",
+                                }}
+                              />
+                            ) : (
+                              <span className="flex h-full items-center justify-center text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+                                Header logo
+                              </span>
+                            )}
+                          </div>
                         </div>
                       ) : null}
                     </div>
@@ -1075,8 +1077,8 @@ export function BuildStationApp() {
                             Header logo (L3VEL3)
                           </p>
                           <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                            Device slot {CLIMAX_HEADER_LOGO_BOX.w}×{CLIMAX_HEADER_LOGO_BOX.h}px
-                            (bar {CLIMAX_BRANDBAR_H}px @393px)
+                            Co-brand strip {CLIMAX_HEADER_LOGO_BOX.w}×{CLIMAX_HEADER_LOGO_BOX.h}px
+                            @393px (matches salonx-web-v2 Climax)
                           </p>
                           <label
                             className={`inline-flex min-h-[2.5rem] items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white ${locked || uploadBusy ? "cursor-not-allowed bg-zinc-500 opacity-70" : "cursor-pointer bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900"}`}

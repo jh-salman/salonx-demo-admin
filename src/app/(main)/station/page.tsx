@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { BuildStationApp } from "@/components/build-station/BuildStationApp";
+import { UserCog } from "lucide-react";
 
 function AutoSavedBadge() {
   return (
@@ -23,7 +25,16 @@ export default function BuildStationPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           Build Station
         </h1>
-        <AutoSavedBadge />
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/#staff-roster"
+            className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3.5 py-1.5 text-sm font-medium text-zinc-700 shadow-sm transition hover:border-violet-300 hover:text-violet-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-violet-700 dark:hover:text-violet-300"
+          >
+            <UserCog className="h-4 w-4" aria-hidden />
+            Manage staff
+          </Link>
+          <AutoSavedBadge />
+        </div>
       </div>
       <BuildStationApp />
     </div>

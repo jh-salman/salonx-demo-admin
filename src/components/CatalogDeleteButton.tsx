@@ -6,6 +6,7 @@ import { Loader2, Trash2 } from "lucide-react";
 import {
   deleteProductAction,
   deleteServiceAction,
+  deleteStaffAction,
 } from "@/app/actions/calendar-dashboard";
 import { Button } from "@/components/ui/button";
 
@@ -14,7 +15,7 @@ export function CatalogDeleteButton({
   id,
   label,
 }: {
-  kind: "product" | "service";
+  kind: "product" | "service" | "staff";
   id: string;
   label: string;
 }) {
@@ -26,14 +27,18 @@ export function CatalogDeleteButton({
     const msg =
       kind === "product"
         ? `Delete product “${label}”?`
-        : `Delete service “${label}”?`;
+        : kind === "service"
+          ? `Delete service “${label}”?`
+          : `Remove staff “${label}”?`;
     if (!window.confirm(msg)) return;
     setPending(true);
     try {
       const result =
         kind === "product"
           ? await deleteProductAction(id)
-          : await deleteServiceAction(id);
+          : kind === "service"
+            ? await deleteServiceAction(id)
+            : await deleteStaffAction(id);
       if (!result.ok) {
         window.alert(result.error);
         return;

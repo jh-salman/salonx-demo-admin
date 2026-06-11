@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { DEFAULT_CLIENTS, DEFAULT_SERVICES } from "@/lib/default-catalog";
+import { DEFAULT_CLIENTS, DEFAULT_SERVICES, DEFAULT_STAFF } from "@/lib/default-catalog";
 import { DEFAULT_PRODUCTS } from "@/lib/default-products";
 import { getPrisma } from "@/lib/prisma";
 
@@ -16,6 +16,22 @@ export async function ensureDefaultClientCatalog(): Promise<boolean> {
 
   const payload = [...DEFAULT_CLIENTS] as Prisma.InputJsonValue;
   await prisma.salonxClientCatalog.upsert({
+    where: { id: "default" },
+    create: { id: "default", items: payload },
+    update: { items: payload },
+  });
+  return true;
+}
+
+export async function ensureDefaultStaffCatalog(): Promise<boolean> {
+  const prisma = getPrisma();
+  if (!prisma) return false;
+
+  const row = await prisma.salonxStaffCatalog.findUnique({ where: { id: "default" } });
+  if (row && !catalogEmpty(row.items)) return false;
+
+  const payload = [...DEFAULT_STAFF] as Prisma.InputJsonValue;
+  await prisma.salonxStaffCatalog.upsert({
     where: { id: "default" },
     create: { id: "default", items: payload },
     update: { items: payload },

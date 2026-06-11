@@ -15,6 +15,7 @@ import {
   Sparkles,
   Tag,
   Trash2,
+  UserCog,
   Users,
   Wifi,
   WifiOff,
@@ -30,6 +31,7 @@ import type {
   DashboardCatalogClient,
   DashboardCatalogProduct,
   DashboardCatalogService,
+  DashboardCatalogStaff,
 } from "@/lib/calendar-dashboard";
 import { cn, formatRelative } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
@@ -38,6 +40,7 @@ import { Button } from "@/components/ui/button";
 import { Label, Select } from "@/components/ui/input";
 import { CatalogDeleteButton } from "@/components/CatalogDeleteButton";
 import { CatalogItemDialog } from "@/components/CatalogItemDialog";
+import { StaffItemDialog } from "@/components/StaffItemDialog";
 
 type IconType = React.ComponentType<{ className?: string }>;
 
@@ -253,6 +256,7 @@ function sourceLabel(data: CalendarDashboardData) {
 }
 
 function SectionCard({
+  id,
   title,
   count,
   icon: Icon,
@@ -263,6 +267,7 @@ function SectionCard({
   children,
   className,
 }: {
+  id?: string;
   title: string;
   count?: number;
   icon: IconType;
@@ -275,6 +280,7 @@ function SectionCard({
 }) {
   return (
     <section
+      id={id}
       className={cn(
         "surface-card rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm",
         className,
@@ -444,6 +450,26 @@ function ServiceCard({ s }: { s: DashboardCatalogService }) {
   );
 }
 
+function StaffCard({ s }: { s: DashboardCatalogStaff }) {
+  return (
+    <div className="surface-card group relative flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 transition hover:-translate-y-0.5 hover:shadow-md">
+      <span
+        className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-violet-500/20 to-fuchsia-500/15 text-violet-600 dark:text-violet-300"
+        aria-hidden
+      >
+        <UserCog className="h-5 w-5" />
+      </span>
+      <p className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--fg-strong)]">
+        {s.name}
+      </p>
+      <div className="flex shrink-0 gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+        <StaffItemDialog mode="edit" item={s} />
+        <CatalogDeleteButton kind="staff" id={s.id} label={s.name} />
+      </div>
+    </div>
+  );
+}
+
 function ProductCard({ p }: { p: DashboardCatalogProduct }) {
   return (
     <div className="surface-card group relative overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] transition hover:-translate-y-0.5 hover:shadow-md">
@@ -567,7 +593,7 @@ export function CalendarDashboard({ data }: { data: CalendarDashboardData }) {
         </div>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
         <StatCard
           label="Appointments"
           value={counts.appointments}
@@ -615,6 +641,14 @@ export function CalendarDashboard({ data }: { data: CalendarDashboardData }) {
           icon={Package}
           gradient="linear-gradient(135deg, rgba(168,85,247,0.2), rgba(168,85,247,0.05))"
           iconColor="#9333ea"
+        />
+        <StatCard
+          label="Staff"
+          value={counts.staff}
+          hint="Day-view columns"
+          icon={UserCog}
+          gradient="linear-gradient(135deg, rgba(139,92,246,0.2), rgba(139,92,246,0.05))"
+          iconColor="#7c3aed"
         />
       </div>
 
@@ -743,6 +777,29 @@ export function CalendarDashboard({ data }: { data: CalendarDashboardData }) {
           )}
         </SectionCard>
       </div>
+
+      <SectionCard
+        id="staff-roster"
+        title="Staff roster"
+        count={data.catalogStaff.length}
+        icon={UserCog}
+        iconColor="#7c3aed"
+        iconBg="linear-gradient(135deg, rgba(139,92,246,0.18), rgba(139,92,246,0.04))"
+        description="Stylists and team members — each person gets a column in the calendar day view."
+        actions={<StaffItemDialog mode="add" />}
+      >
+        {data.catalogStaff.length === 0 ? (
+          <EmptyState text="No staff yet — add your first team member." />
+        ) : (
+          <div className="fancy-scroll max-h-[360px] overflow-y-auto pr-1">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {data.catalogStaff.map((s) => (
+                <StaffCard key={s.id} s={s} />
+              ))}
+            </div>
+          </div>
+        )}
+      </SectionCard>
 
       <SectionCard
         title="Service catalog"

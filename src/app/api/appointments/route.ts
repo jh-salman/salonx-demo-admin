@@ -102,6 +102,8 @@ export async function POST(request: Request) {
     typeof b.notes === "string" ? b.notes.trim().slice(0, 4000) : "";
   const seriesId =
     typeof b.seriesId === "string" && b.seriesId.trim() ? b.seriesId.trim() : null;
+  const staffId =
+    typeof b.staffId === "string" && b.staffId.trim() ? b.staffId.trim() : null;
 
   try {
     const row = await prisma.salonxAppointment.create({
@@ -114,6 +116,7 @@ export async function POST(request: Request) {
         price,
         notes,
         seriesId,
+        staffId,
       },
     });
 
