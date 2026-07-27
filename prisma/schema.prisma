@@ -1,0 +1,94 @@
+// Salon X v2-admin — persisted build station config (optional when DATABASE_URL is set).
+
+generator client {
+  provider      = "prisma-client-js"
+  /// Vercel serverless runs Linux + OpenSSL 3 — include engine for that target.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Single-tenant row: full `SalonxV2AdminConfig` JSON.
+model SalonxBuildConfig {
+  id        String   @id @default("default")
+  /// `SalonxV2AdminConfig` as stored JSON (draft; Build Station edits).
+  payload   Json
+  updatedAt DateTime @updatedAt
+  /// Bumped when `publishToApp` is true; salonx-web-v2 `forWeb=1` follows draft `updatedAt` as `_meta.configRevision`.
+  webProjectionAt DateTime @default(now())
+  /// Last published snapshot for salonx-web-v2 (`GET /api/config?forWeb=1`). Same shape as `payload`.
+  publishedPayload Json?
+}
+
+/// Calendar appointments for salonx-web-v2 (`/api/appointments`).
+model SalonxAppointment {
+  id         String   @id @default(cuid())
+  clientName String
+  service    String   @default("")
+  startAt    DateTime
+  endAt      DateTime
+  color      String   @default("#3b82f6")
+  price      Float    @default(0)
+  notes      String   @default("")
+  seriesId   String?
+  staffId    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([startAt])
+  @@index([endAt])
+  @@index([staffId])
+}
+
+/// Parked + waitlist toolbar (`/api/calendar-toolbar`).
+model SalonxCalendarToolbar {
+  id              String   @id @default("default")
+  parkedFromDrag  Json
+  toolbarEvents   Json
+  updatedAt       DateTime @updatedAt
+}
+
+/// Client picker list (`/api/clients`).
+model SalonxClientCatalog {
+  id        String   @id @default("default")
+  items     Json
+  updatedAt DateTime @updatedAt
+}
+
+/// Staff roster for calendar day columns (`/api/staff`).
+model SalonxStaffCatalog {
+  id        String   @id @default("default")
+  items     Json
+  updatedAt DateTime @updatedAt
+}
+
+/// Service picker list (`/api/service-catalog`).
+model SalonxServiceCatalog {
+  id        String   @id @default("default")
+  items     Json
+  updatedAt DateTime @updatedAt
+}
+
+/// Per-client consultation notes + LOOK photos (`/api/client-consultation/:clientKey`).
+model SalonxClientConsultation {
+  clientKey String   @id
+  payload   Json
+  updatedAt DateTime @updatedAt
+}
+
+/// Per-appointment checkout queue + rates (`/api/appointment-visit/:appointmentId`).
+model SalonxAppointmentVisit {
+  appointmentId String   @id
+  payload       Json
+  updatedAt     DateTime @updatedAt
+}
+
+/// Product picker list (`/api/product-catalog`).
+model SalonxProductCatalog {
+  id        String   @id @default("default")
+  items     Json
+  updatedAt DateTime @updatedAt
+}
