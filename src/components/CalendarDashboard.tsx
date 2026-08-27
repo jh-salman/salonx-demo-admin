@@ -151,20 +151,35 @@ function WaitlistForm({
 
   return (
     <form action={formAction} className="space-y-4">
-      {!catalogReady ? (
+      {clients.length === 0 ? (
         <div className="flex gap-2 rounded-xl border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
-            Add clients and services in the calendar app before using the waiting list.
+            No clients in catalog yet. Add clients in the calendar app (or ensure
+            demo-api <code className="text-xs">/api/clients</code> is reachable
+            without auth for GET).
+          </span>
+        </div>
+      ) : null}
+      {services.length === 0 ? (
+        <div className="flex gap-2 rounded-xl border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            No services in catalog yet. Add services below or in Build Station.
           </span>
         </div>
       ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
           <Label className="mb-1.5 block">Client</Label>
-          <Select name="clientId" required disabled={!catalogReady || pending} defaultValue="">
+          <Select
+            name="clientId"
+            required
+            disabled={clients.length === 0 || pending}
+            defaultValue=""
+          >
             <option value="" disabled>
-              Select client…
+              {clients.length === 0 ? "No clients loaded…" : "Select client…"}
             </option>
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
@@ -176,9 +191,14 @@ function WaitlistForm({
         </label>
         <label className="block">
           <Label className="mb-1.5 block">Service</Label>
-          <Select name="serviceId" required disabled={!catalogReady || pending} defaultValue="">
+          <Select
+            name="serviceId"
+            required
+            disabled={services.length === 0 || pending}
+            defaultValue=""
+          >
             <option value="" disabled>
-              Select service…
+              {services.length === 0 ? "No services loaded…" : "Select service…"}
             </option>
             {services.map((s) => (
               <option key={s.id} value={s.id}>

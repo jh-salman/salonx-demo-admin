@@ -362,11 +362,11 @@ export function SalonxScreen1DemoClone({ config, embed = false }: CloneProps) {
               />
               {embed ? null : (
                 <a
-                  href="https://youtu.be/HOf_GkkpiKk?si=f75yAuJx_ld6-mHb"
+                  href="https://www.salontraining.com"
                   className="screen1-promoYoutubeLink"
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label="Epilogue — watch on YouTube (opens in new tab)"
+                  aria-label="Salon Training — opens in new tab"
                 />
               )}
 
