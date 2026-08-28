@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { DEFAULT_CLIENTS } from "@/lib/default-catalog";
 import { getPrisma } from "@/lib/prisma";
 import { salonxApiOrigin } from "@/lib/salonx-api-url";
 
@@ -302,7 +303,19 @@ async function demoApiFetch<T>(path: string, init?: RequestInit): Promise<T | nu
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      console.error("[calendar-dashboard] demo-api", path, res.status, text.slice(0, 200));
+      const pathOnly = path.split("?")[0] ?? path;
+      // Production still session-gates these GETs until VPS deploy; callers fall back.
+      const expectedUnauthRead =
+        res.status === 401 &&
+        (pathOnly === "/api/clients" || pathOnly === "/api/appointments");
+      if (!expectedUnauthRead) {
+        console.error(
+          "[calendar-dashboard] demo-api",
+          path,
+          res.status,
+          text.slice(0, 200),
+        );
+      }
       return null;
     }
     return (await res.json()) as T;
@@ -377,13 +390,19 @@ async function loadFromDemoApi(origin: string): Promise<CalendarDashboardData | 
     color: a.color ?? "#3b82f6",
   }));
 
+  // Production api.salonx.com still 401s GET /api/clients until VPS deploy lands
+  // (attachTenant fix is on main; GHA SSH times out). Fall back so waitlist UI works.
+  const remoteClients = Array.isArray(clientsRes?.clients) ? clientsRes.clients : [];
+  const clientItems =
+    remoteClients.length > 0 ? remoteClients : ([...DEFAULT_CLIENTS] as unknown[]);
+
   return buildDashboard({
     dataSource: "demo-api",
     apiOrigin: origin,
     appointmentRows,
     toolbarEvents: Array.isArray(toolbarRes?.toolbarEvents) ? toolbarRes.toolbarEvents : [],
     parkedFromDrag: Array.isArray(toolbarRes?.parkedFromDrag) ? toolbarRes.parkedFromDrag : [],
-    clientItems: Array.isArray(clientsRes?.clients) ? clientsRes.clients : [],
+    clientItems,
     serviceItems: Array.isArray(servicesRes?.serviceCatalog) ? servicesRes.serviceCatalog : [],
     productItems: Array.isArray(productsRes?.products) ? productsRes.products : [],
     staffItems: Array.isArray(staffRes?.staff) ? staffRes.staff : [],
